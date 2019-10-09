@@ -1,0 +1,8 @@
+---
+
+cassandra_release_name: cassandra
+cassandra_namespace: testing
+cassandra_cluster_name: msra
+cassandra_replica_count: 3
+cassandra_user: admin
+cassandra_password: password

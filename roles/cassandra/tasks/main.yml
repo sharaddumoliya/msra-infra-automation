@@ -1,0 +1,26 @@
+---
+
+- name: Create a k8s namespace
+  k8s:
+    name: "{{cassandra_namespace}}"
+    api_version: v1
+    kind: Namespace
+    state: present
+
+- name: Install helm chart for Cassandra
+  helm:
+    chart:
+      name: cassandra
+      source:
+        type: repo
+        location: "{{cassandra_bitnami_charts}}"
+    state: present
+    name: "{{cassandra_release_name}}"
+    namespace: "{{cassandra_namespace}}"
+    values:
+      - cluster:
+          name: "{{cassandra_cluster_name}}"
+          replicaCount: "{{cassandra_replica_count}}"
+      - dbUser:
+          user: "{{cassandra_user}}"
+          password: "{{cassandra_password}}"

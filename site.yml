@@ -1,0 +1,5 @@
+---
+# Play book for install and configure Tools & application on K8S
+
+- name: Installing Cassandra on Kubernetes
+  import_playbook: cassandra.yml
