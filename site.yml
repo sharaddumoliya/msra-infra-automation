@@ -1,5 +1,8 @@
 ---
 # Play book for install and configure Tools & application on K8S
 
+- name: Configure common settings on remote server
+  import_playbook: common.yml
+
 - name: Installing Cassandra on Kubernetes
   import_playbook: cassandra.yml

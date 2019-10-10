@@ -1,0 +1,15 @@
+---
+- hosts: k8s_master
+  tasks:
+  - name: make direcotry
+    file:
+      path: "/home/{{ansible_user}}/.ssh"
+      state: directory
+  - name: create empty file
+    file:
+      path: "/home/{{ansible_user}}/.ssh/authorized_keys"
+      state: touch
+  - name: put pubkey
+    lineinfile:
+      path: "/home/{{ansible_user}}/.ssh/authorized_keys"
+      line: "{{ pubkey }}"

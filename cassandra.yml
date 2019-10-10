@@ -1,9 +1,8 @@
 ---
 # cassandra db deployment playbook on K8s
-- hosts: cassandra
-  serial: 1
+- hosts: k8s_master
   gather_facts: true
   become: true
-  become_user: {{ ansible_user }}
+  become_user: "{{ansible_user}}"
   roles:
     - cassandra
