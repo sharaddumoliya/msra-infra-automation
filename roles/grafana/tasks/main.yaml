@@ -1,0 +1,24 @@
+---
+
+- name: Install Python Dependecies for helm
+  pip:
+    name:
+      - pyhelm
+      - grpcio
+      - openshift
+    extra_args: --user
+    executable: /usr/bin/pip3
+
+- name: Create a k8s namespace
+  command: kubectl create namespace "{{grafana_namespace}}"
+
+
+- name: Install helm chart for grafana
+  command: /usr/local/bin/helm install --namespace "{{grafana_namespace}}"  "{{grafana_release_name}}" stable/grafana --set service.type=NodePort,service.nodePort=32323
+
+
+- name: "Check if Grafana is accessible."
+  uri:
+    url: http://127.0.0.1:32323
+    method: GET
+    status_code: 200
