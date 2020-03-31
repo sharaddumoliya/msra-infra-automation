@@ -1,0 +1,18 @@
+---
+
+- name: Install Python Dependecies for helm
+  pip:
+    name:
+      - pyhelm
+      - grpcio
+      - openshift
+    extra_args: --user
+    executable: /usr/bin/pip3
+
+- name: Create a k8s namespace
+  command: kubectl create namespace "{{consul_namespace}}"
+
+
+- name: Install helm chart for consul
+  command: /usr/local/bin/helm install --namespace "{{consul_namespace}}"  "{{consul_release_name}}" stable/consul
+

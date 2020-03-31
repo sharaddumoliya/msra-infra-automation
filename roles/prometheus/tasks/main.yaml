@@ -1,0 +1,24 @@
+---
+
+- name: Install Python Dependecies for helm
+  pip:
+    name:
+      - pyhelm
+      - grpcio
+      - openshift
+    extra_args: --user
+    executable: /usr/bin/pip3
+
+- name: Create a k8s namespace
+  command: kubectl create namespace "{{prometheus_namespace}}"
+
+
+- name: Install helm chart for prometheus
+  command: /usr/local/bin/helm install --namespace "{{prometheus_namespace}}"  "{{prometheus_release_name}}" stable/prometheus --set service.type=NodePort,service.nodePort=32322,alertmanager.persistentVolume.storageClass="fast",server.persistentVolume.storageClass="fast"
+
+
+- name: Check if prometheus is accessible
+  uri:
+    url: http://localhost:32322
+    method: GET
+    status_code: 200

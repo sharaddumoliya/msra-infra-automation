@@ -1,0 +1,12 @@
+---
+serviceName: "prometheus"
+userId: "prometheus"
+groupId: "prometheus"
+exec_command: "/usr/local/bin/prometheus --config.file=/etc/prometheus/prometheus.conf --storage.tsdb.path=/data/prometheus --storage.tsdb.retention=2d"
+version: "2.3.2"
+prometheus_release_name: prometheus
+prometheus_namespace: prometheus-ns
+prometheus_cluster_name: msra
+prometheus_replica_count: 3
+prometheus_user: admin
+prometheus_password: admin
