@@ -14,11 +14,5 @@
 
 
 - name: Install helm chart for grafana
-  command: /usr/local/bin/helm install --namespace "{{grafana_namespace}}"  "{{grafana_release_name}}" stable/grafana --set service.type=NodePort,service.nodePort=32323,persistence.enabled="true",adminPassword="admin",persistence.storageClassName="fast"
+  command: /usr/local/bin/helm install --namespace "{{grafana_namespace}}"  "{{grafana_release_name}}" stable/grafana --values "{{grafana_values}}"
 
-
-- name: "Check if Grafana is accessible."
-  uri:
-    url: http://127.0.0.1:32323
-    method: GET
-    status_code: 200
