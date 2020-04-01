@@ -14,7 +14,7 @@
 
 
 - name: Install helm chart for grafana
-  command: /usr/local/bin/helm install --namespace "{{grafana_namespace}}"  "{{grafana_release_name}}" stable/grafana --set service.type=NodePort,service.nodePort=32323
+  command: /usr/local/bin/helm install --namespace "{{grafana_namespace}}"  "{{grafana_release_name}}" stable/grafana --set service.type=NodePort,service.nodePort=32323,persistence.enabled="true",adminPassword="admin",persistence.storageClassName="fast"
 
 
 - name: "Check if Grafana is accessible."
