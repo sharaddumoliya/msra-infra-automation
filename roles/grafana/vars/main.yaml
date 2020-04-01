@@ -1,12 +1,5 @@
 ---
-serviceName: "grafana"
-userId: "grafana"
-groupId: "grafana"
-exec_command: "/usr/local/bin/grafana --config.file=/etc/grafana/grafana.conf --storage.tsdb.path=/data/grafana --storage.tsdb.retention=2d"
-version: "2.3.2"
 grafana_release_name: grafana
 grafana_namespace: grafana-ns
 grafana_cluster_name: msra
-grafana_replica_count: 3
-grafana_user: admin
-grafana_password: admin
+grafana_values: "/root/Sharad/roles/grafana/templates/values.yaml"
