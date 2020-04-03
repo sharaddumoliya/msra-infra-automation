@@ -1,0 +1,6 @@
+---
+istio_release_name: istio
+istio_namespace: istio-system
+istio_cluster_name: msra
+istio_values: "/root/Sharad/roles/istio/templates/values.yaml"
+istio_directory: "/root/istio-1.5.1"

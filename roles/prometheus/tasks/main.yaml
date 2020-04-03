@@ -1,5 +1,11 @@
 ---
 
+# Developer: Sharad Dumoliya
+# Script name: main.yaml
+# Description:  prometheus deployment
+# Version: 1.0.0
+# Date of development: 31-Mar-2020
+
 - name: Install Python Dependecies for helm
   pip:
     name:
