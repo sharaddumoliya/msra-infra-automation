@@ -14,5 +14,6 @@
 
 
 - name: Install helm chart for consul
-  command: /usr/local/bin/helm install --namespace "{{consul_namespace}}"  "{{consul_release_name}}" stable/consul
+  command: /usr/local/bin/helm install --namespace "{{consul_namespace}}"  "{{consul_release_name}}" stable/consul --values "{{consul_values}}"
+
 

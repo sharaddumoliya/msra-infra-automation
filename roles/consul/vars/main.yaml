@@ -3,7 +3,4 @@
 consul_release_name: consul
 consul_namespace: consul-ns
 consul_cluster_name: msra
-consul_replica_count: 3
-consul_user: admin
-consul_password: admin
-
+consul_values: "/root/Sharad/roles/consul/templates/values.yaml"
