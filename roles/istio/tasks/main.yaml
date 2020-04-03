@@ -5,6 +5,18 @@
 # Version: 1.0.0
 # Date of development: 03-Apr-2020
 
+---
+
+- name: Add Stable Helm Repo.
+  command: /usr/local/bin/helm repo add istio.io https://storage.googleapis.com/istio-release/releases/1.5.1/charts/
+  register: helm_repo_results
+  changed_when: False
+
+- name: List Helm charts.
+  command: /usr/local/bin/helm search repo istio.io
+  register: helm_list_results
+  changed_when: False
+
 - name: Install Python Dependecies for helm
   pip:
     name:
@@ -14,17 +26,30 @@
     extra_args: --user
     executable: /usr/bin/pip3
 
-
 - name: Create a k8s namespace
-  command: kubectl create namespace "{{istio_namespace}}"
+  k8s:
+    name: "{{istio_namespace}}"
+    api_version: v1
+    kind: Namespace
+    state: present
+
+##- name: Create istio namespace
+##  command: kubectl create namespace "{{istio_namespace}}"
+
+##- name: Label istio namespace
+##  command: kubectl label namespace "{{istio_namespace}}" name=istio-system
+##  register: istio_system_label
+##  changed_when: '"error" in istio_system_label.stderr'
+
+##- name: label default namespace to inject side-car
+##  command: kubectl label namespace default istio-injection=enabled
 
 - name: Install Istio Custom Resource Definitions
-  command: /usr/local/bin/helm install --namespace "{{istio_namespace}}" istio-init istio.io/istio-init
+  command: /usr/local/bin/helm install --namespace "{{istio_namespace}}" "{{istio_init_release_name}}" istio.io/istio-init
 
 
 - name: Wait for all Istio CRDs to be created
   command: kubectl -n "{{istio_namespace}}" wait --for=condition=complete job --all
 
 - name: Install Istio’s core components
-  command: /usr/local/bin/helm install --namespace "{{istio_namespace}}" istio istio.io/istio
-
+  command: /usr/local/bin/helm install --namespace "{{istio_namespace}}" "{{istio_release_name}}" istio.io/istio --values "{{istio_values}}"
