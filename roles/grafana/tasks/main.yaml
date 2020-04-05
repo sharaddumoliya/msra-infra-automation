@@ -15,9 +15,24 @@
     executable: /usr/bin/pip3
 
 - name: Create a k8s namespace
-  command: kubectl create namespace "{{grafana_namespace}}"
-
+  k8s:
+    name: "{{grafana_namespace}}"
+    api_version: v1
+    kind: Namespace
+    state: present
 
 - name: Install helm chart for grafana
   command: /usr/local/bin/helm install --namespace "{{grafana_namespace}}"  "{{grafana_release_name}}" stable/grafana --values "{{grafana_values}}"
+  register: helm_grafana_result
+  failed_when: "'ERROR' in helm_grafana_result.stderr"
+  
+- name: Wait for all grafana pods to be created
+  command: kubectl -n "{{grafana_namespace}}" wait --for=condition=Ready pods --all
+
+- name: Check if Grafana is accessible.
+  uri:
+    url: http://127.0.0.1:32323
+    method: GET
+    status_code: 200
+
 

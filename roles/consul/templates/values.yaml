@@ -161,3 +161,12 @@ podAnnotations: {}
 #       - "sleep 60"
 forceIpv6: false
 
+# Enable Connect for secure communication between nodes
+connectInject:
+  enabled: true
+
+client:
+  enabled: true
+
+syncCatalog:
+  enabled: true

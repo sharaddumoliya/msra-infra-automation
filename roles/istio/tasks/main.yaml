@@ -6,7 +6,6 @@
 # Date of development: 03-Apr-2020
 
 ---
-
 - name: Add Stable Helm Repo.
   command: /usr/local/bin/helm repo add istio.io https://storage.googleapis.com/istio-release/releases/1.5.1/charts/
   register: helm_repo_results
@@ -33,19 +32,10 @@
     kind: Namespace
     state: present
 
-##- name: Create istio namespace
-##  command: kubectl create namespace "{{istio_namespace}}"
-
-##- name: Label istio namespace
-##  command: kubectl label namespace "{{istio_namespace}}" name=istio-system
-##  register: istio_system_label
-##  changed_when: '"error" in istio_system_label.stderr'
-
-##- name: label default namespace to inject side-car
-##  command: kubectl label namespace default istio-injection=enabled
-
 - name: Install Istio Custom Resource Definitions
   command: /usr/local/bin/helm install --namespace "{{istio_namespace}}" "{{istio_init_release_name}}" istio.io/istio-init
+  register: helm_istio_init_result
+  failed_when: "'ERROR' in helm_istio_init_result.stderr"
 
 
 - name: Wait for all Istio CRDs to be created
@@ -53,3 +43,5 @@
 
 - name: Install Istio’s core components
   command: /usr/local/bin/helm install --namespace "{{istio_namespace}}" "{{istio_release_name}}" istio.io/istio --values "{{istio_values}}"
+  register: helm_istio_result
+  failed_when: "'ERROR' in helm_istio_result.stderr"

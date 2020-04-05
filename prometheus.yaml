@@ -2,11 +2,11 @@
 
 # Developer: Sharad Dumoliya
 # Script name: main.yaml
-# Description:  prometheus deployment
+# Description:  Prometheus deployment
 # Version: 1.0.0
 # Date of development: 31-Mar-2020
 
-- hosts: localhost
+- hosts: k8s_master
   become: yes
 
   roles:

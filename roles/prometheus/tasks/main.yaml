@@ -16,8 +16,23 @@
     executable: /usr/bin/pip3
 
 - name: Create a k8s namespace
-  command: kubectl create namespace "{{prometheus_namespace}}"
-
+  k8s:
+    name: "{{prometheus_namespace}}"
+    api_version: v1
+    kind: Namespace
+    state: present
 
 - name: Install helm chart for prometheus
   command: /usr/local/bin/helm install --namespace "{{prometheus_namespace}}"  "{{prometheus_release_name}}" stable/prometheus --values "{{prometheus_values}}"
+  register: helm_prometheus_result
+  failed_when: "'ERROR' in helm_prometheus_result.stderr"
+  
+- name: Wait for all prometheus pods to be created
+  command: kubectl -n "{{prometheus_namespace}}" wait --for=condition=Ready pods --all
+ 
+- name: Check if Prometheus is accessible.
+  uri:
+    url: http://127.0.0.1:32322
+    method: GET
+    status_code: 200
+ 

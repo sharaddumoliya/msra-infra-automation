@@ -16,10 +16,19 @@
     executable: /usr/bin/pip3
 
 - name: Create a k8s namespace
-  command: kubectl create namespace "{{consul_namespace}}"
+  k8s:
+    name: "{{consul_namespace}}"
+    api_version: v1
+    kind: Namespace
+    state: present
 
 
 - name: Install helm chart for consul
   command: /usr/local/bin/helm install --namespace "{{consul_namespace}}"  "{{consul_release_name}}" stable/consul --values "{{consul_values}}"
+  register: helm_consul_result
+  failed_when: "'ERROR' in helm_consul_result.stderr"
+
+- name: Wait for all consul pods to be created
+  command: kubectl -n "{{consul_namespace}}" wait --for=condition=Ready pods --all
 
 
