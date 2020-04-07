@@ -5,46 +5,131 @@
 # Version: 1.0.0
 # Date of development: 03-Apr-2020
 
----
-- name: Add Stable Helm Repo.
-  command: /usr/local/bin/helm repo add istio.io https://storage.googleapis.com/istio-release/releases/1.5.1/charts/
-  register: helm_repo_results
-  changed_when: False
+- name: Checking if Istio-Kiali is installed in  "{{istio_namespace}}"
+  command: "{{helm_location}}/helm ls -n {{istio_namespace}}"
+  register: if_istio
 
-- name: List Helm charts.
-  command: /usr/local/bin/helm search repo istio.io
-  register: helm_list_results
-  changed_when: False
+- block:
+    - debug:
+        msg: "Istio is already deployed in {{istio_namespace}}"
 
-- name: Install Python Dependecies for helm
-  pip:
-    name:
-      - pyhelm
-      - grpcio
-      - openshift
-    extra_args: --user
-    executable: /usr/bin/pip3
+    - name: Check the deployed pod status
+      shell: kubectl --namespace "{{istio_namespace}}" get pods --field-selector=status.phase=Running
+      register: istio_pod_status
 
-- name: Create a k8s namespace
-  k8s:
-    name: "{{istio_namespace}}"
-    api_version: v1
-    kind: Namespace
-    state: present
+    - debug:
+        var: istio_pod_status.stdout_lines
 
-- name: Install Istio Custom Resource Definitions
-  command: /usr/local/bin/helm install --namespace "{{istio_namespace}}" "{{istio_init_release_name}}" istio.io/istio-init
-  register: helm_istio_init_result
-  failed_when: "'ERROR' in helm_istio_init_result.stderr"
+    - name: Check if Kiali is accessible.
+      uri:
+        url: http://127.0.0.1:32500
+        method: GET
+        status_code: 200
+      register: kiali_url_status
+
+    - debug:
+        var: kiali_url_status.msg
+
+  when: "'istio' in if_istio.stdout and 'deployed' in if_istio.stdout"
+
+- name: Installing Istio
+  block:
+
+    - name: Add Stable Helm Repo.
+      command: /usr/local/bin/helm repo add istio.io https://storage.googleapis.com/istio-release/releases/1.5.1/charts/
+      register: helm_repo_results
+      changed_when: False
+
+    - name: List Helm charts.
+      command: /usr/local/bin/helm search repo istio.io
+      register: helm_list_results
+      changed_when: False
+
+    - name: Install Python Dependecies for helm
+      pip:
+        name:
+          - pyhelm
+          - grpcio
+          - openshift
+        extra_args: --user
+        executable: /usr/bin/pip3
+
+    - name: Create a k8s namespace
+      k8s:
+        name: "{{istio_namespace}}"
+        api_version: v1
+        kind: Namespace
+        state: present
+
+    - name: Create Kiali secret
+      k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+              name: kiali
+              namespace: istio-system
+              labels:
+                app: kiali
+                chart: kiali
+                heritage: Helm
+                release: istio
+          type: Opaque
+          data:
+              username: YWRtaW4=   # admin
+              passphrase: YWRtaW4= # admin
+      register: Secret_Kiali
+
+    - name: Install Istio Custom Resource Definitions
+      command: /usr/local/bin/helm install --namespace "{{istio_namespace}}" "{{istio_init_release_name}}" istio.io/istio-init
+      register: helm_istio_init_result
+      failed_when: "'ERROR' in helm_istio_init_result.stderr"
+
+    - debug:
+        var: helm_istio_init_result.stdout_lines
+
+    - name: Wait for all Istio CRDs to be created
+      command: kubectl -n "{{istio_namespace}}" wait --for=condition=complete job --all
+
+    - name: Install Istio’s core components
+      command: /usr/local/bin/helm install --namespace "{{istio_namespace}}" "{{istio_release_name}}" istio.io/istio --values "{{istio_values}}"
+      register: helm_istio_result
+      failed_when: "'ERROR' in helm_istio_result.stderr"
+
+    - debug:
+        var: helm_istio_result.stdout_lines
+
+    - name: Change Kiali port to NodePort
+      k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            namespace: istio-system
+            name: kiali
+          spec:
+            type: NodePort
+            ports:
+              - name: http-kiali
+                nodePort: 32500
+                port: 20001
+                targetPort: 20001
+                protocol: TCP
+            selector:
+              app: kiali
+      register: service_kiali
+
+    - name: Check if Kiali is accessible.
+      uri:
+        url: http://127.0.0.1:32500
+        method: GET
+        status_code: 200
+      register: kiali_url_status
+
+    - debug:
+        var: kiali_url_status.msg
 
 
-- name: Wait for all Istio CRDs to be created
-  command: kubectl -n "{{istio_namespace}}" wait --for=condition=complete job --all
-
-- name: Install Istio’s core components
-  command: /usr/local/bin/helm install --namespace "{{istio_namespace}}" "{{istio_release_name}}" istio.io/istio --values "{{istio_values}}"
-  register: helm_istio_result
-  failed_when: "'ERROR' in helm_istio_result.stderr"
-
-- name: Change Kiali port to NodePort
-  command: kubectl -n istio-system patch svc kiali --type='json' -p '[{"op":"replace","path":"/spec/type","value":"NodePort"}]'
+  when: "'istio' not in if_istio.stdout and 'deployed' not in if_istio.stdout"

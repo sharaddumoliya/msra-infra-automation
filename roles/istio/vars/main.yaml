@@ -4,6 +4,6 @@ istio_init_release_name: istio-init
 istio_namespace: istio-system
 istio_cluster_name: msra
 istio_values: "roles/istio/templates/istio-values.yaml"
-istio_directory: "/root/istio-1.5.1"
+kiali_secret: "roles/istio/templates/secret.yaml"
 helm_location: "/usr/local/bin/"
 
