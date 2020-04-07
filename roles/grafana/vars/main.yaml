@@ -2,4 +2,5 @@
 grafana_release_name: grafana
 grafana_namespace: grafana-ns
 grafana_cluster_name: msra
-grafana_values: "/root/Sharad/roles/grafana/templates/values.yaml"
+grafana_values: "roles/grafana/templates/values.yaml"
+helm_location: "/usr/local/bin/"
