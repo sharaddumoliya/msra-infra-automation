@@ -13,6 +13,9 @@
 #
 gateways:
   enabled: true
+  istio-ingressgateway:
+   type: NodePort
+
 
 #
 # sidecar-injector webhook configuration, refer to the
@@ -74,13 +77,18 @@ prometheus:
 # addon jaeger tracing configuration
 #
 tracing:
-  enabled: false
+  enabled: true
 
 #
 # addon kiali tracing configuration
 #
 kiali:
   enabled: true
+  ingress:
+   enabled: true
+  dashboard:
+   grafanaURL: "http://127.0.0.1:32323"
+   jaegerInClusterURL: "http://tracing/jaeger"
 
 #
 # addon certmanager configuration
