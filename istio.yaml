@@ -1,0 +1,13 @@
+---
+# Developer: Sharad Dumoliya
+# Script name: main.yaml
+# Description:  Istio and Kiali deployment
+# Version: 1.0.0
+# Date of development: 07-Apr-2020
+---
+# istio deployment playbook on K8s
+- hosts: localhost
+  become: yes
+
+  roles:
+    - istio
