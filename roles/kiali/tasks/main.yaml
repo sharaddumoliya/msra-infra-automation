@@ -1,0 +1,28 @@
+---
+
+- name: Install Python Dependecies for helm
+  pip:
+    name:
+      - pyhelm
+      - grpcio
+      - openshift
+    extra_args: --user
+    executable: /usr/bin/pip3
+
+- name: Create a k8s namespace
+  k8s:
+    name: "{{kiali_namespace}}"
+    api_version: v1
+    kind: Namespace
+    state: present
+
+- name: Install kiali Operator
+  command: apply -f KialiOperator.yaml -n kiali-operator
+  register: kiali_operator_result
+  failed_when: "'ERROR' in kiali_operator_result.stderr"
+
+
+- name: Install kiali CR
+  command: apply -f kiali-cr.yaml -n kiali-operator
+  register: kiali_cr_result
+  failed_when: "'ERROR' in kiali__cr_result.stderr"

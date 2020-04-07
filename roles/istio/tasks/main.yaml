@@ -45,3 +45,6 @@
   command: /usr/local/bin/helm install --namespace "{{istio_namespace}}" "{{istio_release_name}}" istio.io/istio --values "{{istio_values}}"
   register: helm_istio_result
   failed_when: "'ERROR' in helm_istio_result.stderr"
+
+- name: Change Kiali port to NodePort
+  command: kubectl -n istio-system patch svc kiali --type='json' -p '[{"op":"replace","path":"/spec/type","value":"NodePort"}]'
