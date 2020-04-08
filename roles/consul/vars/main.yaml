@@ -3,4 +3,5 @@
 consul_release_name: consul
 consul_namespace: consul-ns
 consul_cluster_name: msra
-consul_values: "/root/Sharad/roles/consul/templates/values.yaml"
+consul_values: "roles/consul/templates/values.yaml"
+helm_location: "/usr/local/bin/"
