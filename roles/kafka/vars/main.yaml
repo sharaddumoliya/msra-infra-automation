@@ -1,0 +1,31 @@
+---
+
+kafka_release_name: kafka
+kafka_namespace: kafka-ns
+kafka_cluster_name: msra
+
+kafka_replicaCount: 3
+
+kafka_storageClass: "fast"
+kafka_size: 1Gi
+
+kafka_livenessProbe_initialDelaySeconds: 360
+kafka_livenessProbe_timeoutSeconds: 5
+kafka_livenessProbe_failureThreshold: 3
+kafka_livenessProbe_periodSeconds: 15
+kafka_livenessProbe_successThreshold: 1
+
+kafka_readinessProbe_initialDelaySeconds: 120
+kafka_readinessProbe_failureThreshold: 6
+kafka_readinessProbe_timeoutSeconds: 5
+kafka_readinessProbe_periodSeconds: 15
+kafka_readinessProbe_successThreshold: 1
+
+kafka_resources_limits_cpu: 250m
+kafka_resources_limits_memory: 1Gi
+
+kafka_resources_requests_cpu: 250m
+kafka_resources_requests_memory: 256Mi
+
+zookeeper_size: 1Gi
+

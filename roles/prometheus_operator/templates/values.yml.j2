@@ -1,0 +1,113 @@
+alertmanager:
+  service:
+    type: {{alertmanager_service_type}}
+    nodePort: {{alertmanager_nodePort}}
+  alertmanagerSpec:
+    image:
+      repository: {{alertmanager_alertmanagerSpec_image_repository}}
+      tag: {{alertmanager_alertmanagerSpec_image_tag}}
+    replicas: {{alertmanager_alertmanagerSpec_replicas}}
+    retention: {{alertmanager_alertmanagerSpec_retention}}
+
+    ## Storage is the definition of how storage will be used by the Alertmanager instances.
+    ##
+    storage:
+     volumeClaimTemplate:
+       spec:
+         storageClassName: {{alertmanager_alertmanagerSpec_storage_storageClassName}}
+         accessModes: ["ReadWriteOnce"]
+         resources:
+           requests:
+             storage: {{alertmanager_alertmanagerSpec_storage_size}}
+
+
+    ## Define resources requests and limits for single Pods.
+    ##
+    resources:
+     requests:
+       memory: {{alertmanager_alertmanagerSpec_resources_requests_memory}}
+
+
+## Using default values from https://github.com/helm/charts/blob/master/stable/grafana/values.yaml
+##
+grafana:
+ enabled: true
+ adminPassword: {{grafana_password}}
+ service:
+  type: {{grafana_service_type}}
+  nodePort: {{grafana_nodePort}}
+
+
+prometheusOperator:
+  resources:
+   limits:
+     cpu: {{prometheusOperator_resources_limits_cpu}}
+     memory: {{prometheusOperator_resources_limits_memory}}
+   requests:
+     cpu: {{prometheusOperator_resources_requests_cpu}}
+     memory: {{prometheusOperator_resources_requests_memory}}
+
+  ## Prometheus-operator image
+  ##
+  image:
+    repository: {{prometheusOperator_repository}}
+    tag: {{prometheusOperator_tag}}
+    pullPolicy: IfNotPresent
+
+  ## Configmap-reload image to use for reloading configmaps
+  ##
+  configmapReloadImage:
+    repository: {{prometheusOperator_configmapReloadImage_repository}}
+    tag: {{prometheusOperator_configmapReloadImage_tag}}
+
+  ## Prometheus-config-reloader image to use for config and rule reloading
+  ##
+  prometheusConfigReloaderImage:
+    repository: {{prometheusOperator_prometheusConfigReloaderImage_repository}}
+    tag: {{prometheusOperator_prometheusConfigReloaderImage_tag}}
+
+  ## Set the prometheus config reloader side-car CPU limit
+  ##
+  configReloaderCpu: {{prometheusOperator_configReloaderCpu}}
+
+  ## Set the prometheus config reloader side-car memory limit
+  ##
+  configReloaderMemory: {{prometheusOperator_configReloaderMemory}}
+
+  ## Hyperkube image to use when cleaning up
+  ##
+  hyperkubeImage:
+    repository: {{prometheusOperator_hyperkubeImage_repository}}
+    tag: {{prometheusOperator_hyperkubeImage_tag}}
+    pullPolicy: IfNotPresent
+
+
+prometheus:
+  service:
+    nodePort: {{prometheus_service_nodePort}}
+    type: {{prometheus_service_type}}
+  prometheusSpec:
+    ## Image of Prometheus.
+    ##
+    image:
+      repository: {{prometheus_prometheusSpec_image_repository}}
+      tag: {{prometheus_prometheusSpec_image_tag}}
+
+    ## How long to retain metrics
+    ##
+    retention: {{prometheus_prometheusSpec_retention}}
+
+    ## Number of Prometheus replicas desired
+    ##
+    replicas: {{prometheus_prometheusSpec_replicas}}
+
+    ## Prometheus StorageSpec for persistent data
+    ##
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: {{prometheus_storageClassName}}
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: {{prometheus_prometheusSpec_storage_size}}

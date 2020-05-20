@@ -1,0 +1,106 @@
+---
+####################################################
+# Developer: ESHADUM Sharad Dumoliya             #
+# Script name: main.yml                            #
+# Description: Kibana deployment tasks      #
+# Version: 1.0.0                                   #
+# Date of development:09-04-2020                   #
+####################################################
+- name: Listing namespaces
+  command: "kubectl get namespaces"
+  register: namespace_list
+
+- name: Checking if Kibana is installed in  "{{kibana_namespace}}"
+  command: "kubectl get pods -n {{kibana_namespace}}"
+  register: if_kibana
+
+- set_fact:
+    message: "{{ (((task_type == 'install') and ('kibana' in if_kibana.stdout)) or ((task_type == 'uninstall') and ('kibana' in if_kibana.stdout))) | ternary('kibana is installed', 'kibana is not installed') }}"
+
+- debug:
+    msg: "{{message}}"
+
+- block:
+    - debug:
+        msg: "Kibana is already deployed in {{kibana_namespace}}"
+
+    - name: Check the deployed pod status
+      command: "kubectl get pods -n {{kibana_namespace}}"
+      register: kibana_pod_status
+
+    - debug:
+        var: kibana_pod_status.stdout_lines
+  when: "'kibana' in if_kibana.stdout"
+
+- name: Installing Kibana
+  block:
+    - name: Create a k8s namespace
+      k8s:
+        name: "{{kibana_namespace}}"
+        api_version: v1
+        kind: Namespace
+        state: present
+      when: "kibana_namespace not in namespace_list.stdout_lines"
+
+    - name: Templating values.yml
+      template:
+        src: "roles/kibana/templates/values.yml.j2"
+        dest: "/home/{{ansible_user}}/values.yml"
+        mode: '0644'
+
+    - name: Install Kibana
+      command: "kubectl apply -f /home/{{ansible_user}}/values.yml"
+      register: kibana_result
+      failed_when: "'Error' in kibana_result.stderr"
+
+    - debug:
+       var: kibana_result.stdout_lines
+
+    - name: Confirming successful deployment status
+      action:
+        shell kubectl get pods -n "{{kibana_namespace}}" | grep '1/1' |wc -l
+      register: deployment_status
+      until: deployment_status.stdout|int == kibana_replica_count|int
+      retries: 5
+      delay: 60
+
+    - debug:
+         var: deployment_status.stdout_lines
+
+    - name: Remove file values.yml
+      file:
+        path: "/home/{{ansible_user}}/values.yml"
+        state: absent
+      when: "'kibana' not in if_kibana.stdout"
+
+
+  when: "'install' == task_type and 'kibana' not in if_kibana.stdout"
+
+
+- name: Unistalling Kibana
+  block:
+    - name: Templating values.yml
+      template:
+        src: "roles/kibana/templates/values.yml.j2"
+        dest: "/home/{{ansible_user}}/values.yml"
+        mode: '0644'
+
+    - name: Delete Kibana
+      command: "kubectl delete -f /home/{{ansible_user}}/values.yml"
+      register: kibana_delete_status
+
+    - debug:
+        var: kibana_delete_status.stdout_lines
+
+    - name: Remove file values.yml
+      file:
+        path: "/home/{{ansible_user}}/values.yml"
+        state: absent
+  when: "'uninstall' == task_type and 'kibana' in if_kibana.stdout"
+
+- name: Playbook Signature
+  block:
+    - debug:
+        msg: "No 'task_type' supplied. Playbook signature:   ansible-playbook -i <hosts file> <playbook> --extra-vars 'task_type=<install/uninstall>'"
+  when: "task_type == '' or ('install' or 'uninstall') not in task_type"
+

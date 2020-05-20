@@ -1,0 +1,41 @@
+
+replicaCount: {{kafka_replicaCount}}
+
+persistence:
+  enabled: true
+  storageClass: {{kafka_storageClass}}
+  accessModes:
+    - ReadWriteOnce
+  size: {{kafka_size}}
+
+livenessProbe:
+  tcpSocket:
+    port: kafka
+  initialDelaySeconds: {{kafka_livenessProbe_initialDelaySeconds}}
+  timeoutSeconds: {{kafka_livenessProbe_timeoutSeconds}}
+  failureThreshold: {{kafka_livenessProbe_failureThreshold}}
+  periodSeconds: {{kafka_livenessProbe_periodSeconds}}
+  # successThreshold: {{kafka_livenessProbe_successThreshold}}
+
+readinessProbe:
+  tcpSocket:
+    port: kafka
+  initialDelaySeconds: {{kafka_readinessProbe_initialDelaySeconds}}
+  failureThreshold: {{kafka_readinessProbe_failureThreshold}}
+  timeoutSeconds: {{kafka_readinessProbe_timeoutSeconds}}
+  periodSeconds: {{kafka_readinessProbe_periodSeconds}}
+  # successThreshold: {{kafka_readinessProbe_successThreshold}}
+
+resources:
+  limits:
+    cpu: {{kafka_resources_limits_cpu}}
+    memory: {{kafka_resources_limits_memory}}
+  requests:
+    cpu: {{kafka_resources_requests_cpu}}
+    memory: {{kafka_resources_requests_memory}}
+
+
+zookeeper:
+  enabled: true
+  persistence:
+    size: {{zookeeper_size}}

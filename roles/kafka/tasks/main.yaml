@@ -1,0 +1,111 @@
+---
+####################################################
+# Developer: Sharad Dumoliya                       #
+# Script name: main.yaml                           #
+# Description:  Kafka- deployment     #
+# Version: 1.0.0                                   #
+# Date of development: 09-Apr-2020                 #
+####################################################
+
+- name: Checking if Kafka  is installed in namespace "{{kafka_namespace}}"
+  command: "{{helm_location}}/helm ls -n {{kafka_namespace}}"
+  register: if_kafka
+  failed_when: "'Error' in if_kafka"
+
+- set_fact:
+    message: "{{ ((task_type == 'install') and ('deployed' in if_kafka.stdout)) or ((task_type == 'uninstall') and ('deployed' in if_kafka.stdout)) | ternary('kafka is installed', 'kafka is not installed') }}"
+
+- debug:
+    msg: "{{message}}"
+
+- block:
+    - debug:
+        msg: "Kafka is already deployed in namespace {{kafka_namespace}}"
+
+    - name: Check the deployed pod status in namespace {{kafka_namespace}}"
+      command: kubectl -n  {{kafka_namespace}} get pods
+      register: kafka_pod_status
+      failed_when: "'Error' in kafka_pod_status"
+
+    - debug:
+        var: kafka_pod_status.stdout_lines
+
+  when: "'kafka' in if_kafka.stdout and 'deployed' in if_kafka.stdout"
+
+- name: Installing Kafka
+  block:
+
+    - name: Add Bitnami Helm Repo.
+      command: "{{helm_location}}/helm repo add bitnami {{bitnami_helm_charts}}"
+      register: helm_repo_results
+      changed_when: False
+
+    - name: Create {{kafka_namespace}} namespace
+      k8s:
+        name: "{{kafka_namespace}}"
+        api_version: v1
+        kind: Namespace
+        state: present
+
+    - name: Templating values.yml
+      template:
+        src: "roles/kafka/templates/values.yml.j2"
+        dest: "/home/{{ansible_user}}/values.yml"
+        mode: '0644'
+
+    - name: Install helm chart for kafka
+      command: "{{helm_location}}/helm install -n {{kafka_namespace}} {{kafka_release_name}} bitnami/kafka -f /home/{{ansible_user}}/values.yml"
+      register: helm_kafka_result
+      failed_when: "'Error' in helm_kafka_result.stderr"
+
+    - debug:
+       var: helm_kafka_result.stdout_lines
+
+    - name: Confirming the deployment status
+      action:
+        shell kubectl get pods -n {{kafka_namespace}} -l app.kubernetes.io/component=kafka | grep '1/1' |wc -l
+      register: kafka_deployment_status
+      until: kafka_deployment_status.stdout|int == kafka_replicaCount|int
+      retries: 10
+      delay: 60
+
+    - name: Remove old file values.yml
+      file:
+        path: "/home/{{ansible_user}}/values.yml"
+        state: absent
+      changed_when: False
+
+  when: "'install' == task_type and 'kafka' not in if_kafka.stdout and 'deployed' not in if_kafka.stdout"
+
+
+- name: Unistalling Kafka
+  block:
+    - name: Uninstall kafka using helm
+      command: "{{helm_location}}/helm uninstall --namespace {{kafka_namespace}} {{kafka_release_name}}"
+      register: helm_kafka_result
+
+    - debug:
+        var: helm_kafka_result.stdout_lines
+
+    - name: Checking PVC status in "{{kafka_namespace}}"
+      shell: "kubectl -n {{kafka_namespace}} get pvc -o name"
+      register: kafka_pvc_status
+    - debug:
+        var: kafka_pvc_status.stdout_lines
+
+    - name: delete pvc for kafka
+      command: "kubectl -n {{kafka_namespace}} delete {{kafka_pvc_status.stdout}}"
+      register: pvc_delete_status
+      when: kafka_pvc_status.stdout_lines != ''
+
+    - debug:
+        var: pvc_delete_status.stdout_lines
+
+  when: "'uninstall' == task_type and 'kafka' in if_kafka.stdout and 'deployed' in if_kafka.stdout"
+
+- name: Playbook Signature
+  block:
+    - debug:
+        msg: "No 'task_type' supplied. Playbook signature:   ansible-playbook -i <hosts file> <playbook> --extra-vars 'task_type=<install/uninstall>'"
+  when: "task_type == '' or ('install' or 'uninstall') not in task_type"
+

@@ -1,0 +1,51 @@
+---
+# Developer: ESHADUM Sharad Dumoliya
+# Script name: prometheus_operator.yml
+# Description: name: Prometheus-Operator Helm chart deployment values variables
+# Version: 1.0.0
+# Date of development: 15-Apr-2020
+
+prometheus_release_name: prometheus-operator
+prometheus_namespace: monitoring
+prometheus_operator_cluster_name: msra
+prometheus_storageClassName: fast
+
+prometheusOperator_resources_limits_cpu: 200m
+prometheusOperator_resources_limits_memory: 200Mi
+prometheusOperator_resources_requests_cpu: 100m
+prometheusOperator_resources_requests_memory: 100Mi
+prometheusOperator_repository: quay.io/coreos/prometheus-operator
+prometheusOperator_tag: v0.37.0
+prometheusOperator_configmapReloadImage_repository: quay.io/coreos/configmap-reload
+prometheusOperator_configmapReloadImage_tag: v0.0.1
+prometheusOperator_prometheusConfigReloaderImage_repository: quay.io/coreos/prometheus-config-reloader
+prometheusOperator_prometheusConfigReloaderImage_tag: v0.37.0
+prometheusOperator_configReloaderCpu: 100m
+prometheusOperator_configReloaderMemory: 25Mi
+prometheusOperator_hyperkubeImage_repository: k8s.gcr.io/hyperkube
+prometheusOperator_hyperkubeImage_tag: v1.12.1
+
+
+prometheus_prometheusSpec_replicas: 1
+prometheus_prometheusSpec_retention: 10d
+prometheus_service_type: ClusterIP
+prometheus_service_nodePort: 30090
+prometheus_prometheusSpec_image_repository: quay.io/prometheus/prometheus
+prometheus_prometheusSpec_image_tag: v2.15.2
+prometheus_prometheusSpec_storage_size: 5Gi
+
+
+alertmanager_service_type: ClusterIP
+alertmanager_nodePort: 30903
+
+alertmanager_alertmanagerSpec_image_repository: quay.io/prometheus/alertmanager
+alertmanager_alertmanagerSpec_image_tag: v0.20.0
+alertmanager_alertmanagerSpec_replicas: 1
+alertmanager_alertmanagerSpec_retention: 120h
+alertmanager_alertmanagerSpec_storage_storageClassName: fast
+alertmanager_alertmanagerSpec_storage_size: 5Gi
+alertmanager_alertmanagerSpec_resources_requests_memory: 400Mi
+
+grafana_password: admin
+grafana_service_type: NodePort
+grafana_nodePort: 32323

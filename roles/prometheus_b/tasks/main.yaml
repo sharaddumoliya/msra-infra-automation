@@ -1,0 +1,150 @@
+---
+####################################################
+# Developer: Sharad Dumoliya                       #
+# Script name: main.yaml                           #
+# Description: Prometheus Operator deployment      #
+# Version: 1.0.0                                   #
+# Date of development: 13-Apr-2020                 #
+####################################################
+
+- name: Listing namespaces
+  command: "kubectl get namespaces"
+  register: namespace_list
+
+
+- name: Checking if Prometheus Operator is installed in namespace "{{prometheus_namespace}}"
+  command: "{{helm_location}}/helm ls -n {{prometheus_namespace}}"
+  register: if_prometheus
+  failed_when: "'Error' in if_prometheus"
+
+- block:
+    - debug:
+        msg: "Prometheus Operator is already deployed in namespace {{prometheus_namespace}}"
+
+    - name: Check the deployed pod status in namespace {{prometheus_namespace}}"
+      command: kubectl -n  {{prometheus_namespace}} get pods --field-selector=status.phase=Running
+      register: prometheus_pod_status
+      failed_when: "'Error' in prometheus_pod_status"
+
+    - debug:
+        var: prometheus_pod_status.stdout_lines
+
+    - name: Check if Prometheus Operator is accessible.
+      uri:
+        url: http://127.0.0.1:{{prometheus_nodePort}}
+        method: GET
+        status_code: 200
+      register: prometheus_url_status
+
+    - debug:
+        var: prometheus_url_status.msg
+
+  when: "'prometheus' in if_prometheus.stdout and 'deployed' in if_prometheus.stdout"
+
+- name: Installing Prometheus Operator
+  block:
+
+    - name: Delete all previously created prometheus_operator customresourcedefinitions
+      shell: kubectl delete --ignore-not-found customresourcedefinitions \
+                 prometheuses.monitoring.coreos.com \
+                 servicemonitors.monitoring.coreos.com \
+                 podmonitors.monitoring.coreos.com \
+                 alertmanagers.monitoring.coreos.com \
+                 prometheusrules.monitoring.coreos.com \
+                 thanosrulers.monitoring.coreos.com
+      register: prometheus_delete_crds
+
+    - debug:
+       var: prometheus_delete_crds.stdout_lines
+
+    - name: Delete all previously created prometheus_operator PodSecurityPolicy
+      shell: kubectl delete --ignore-not-found PodSecurityPolicy prometheus-operator-alertmanager \
+                 prometheus-operator-kube-state-metrics \
+                 prometheus-operator-node-exporter \
+                 prometheus-operator-operator \
+                 prometheus-operator-prometheus
+      register: prometheus_delete_psp
+      failed_when: "'Error' in prometheus_delete_psp.stderr"
+
+    - debug:
+       var: prometheus_delete_psp.stdout_lines
+
+    - name: Delete all previously created prometheus_operator ClusterRole
+      shell: kubectl delete --ignore-not-found ClusterRole prometheus-operator-alertmanager-psp \
+                 prometheus-operator-kube-state-metrics \
+                 prometheus-operator-kube-state-metrics-psp \
+                 prometheus-operator-node-exporter-psp \
+                 prometheus-operator-operator \
+                 prometheus-operator-operator-psp \
+                 prometheus-operator-prometheus \
+                 prometheus-operator-prometheus-psp
+      register: prometheus_delete_cr
+      failed_when: "'Error' in prometheus_delete_cr.stderr"
+
+    - debug:
+       var: prometheus_delete_cr.stdout_lines
+
+    - name: Delete all previously created prometheus_operator ClusterRoleBinding
+      shell: kubectl delete --ignore-not-found ClusterRoleBinding prometheus-operator-alertmanager-psp \
+                 prometheus-operator-kube-state-metrics \
+                 prometheus-operator-kube-state-metrics-psp \
+                 prometheus-operator-node-exporter-psp \
+                 prometheus-operator-operator \
+                 prometheus-operator-operator-psp \
+                 prometheus-operator-prometheus \
+                 prometheus-operator-prometheus-psp
+      register: prometheus_delete_crb
+      failed_when: "'Error' in prometheus_delete_crb.stderr"
+
+    - debug:
+       var: prometheus_delete_crb.stdout_lines
+
+    - name: Create {{prometheus_namespace}} namespace
+      k8s:
+        name: "{{prometheus_namespace}}"
+        api_version: v1
+        kind: Namespace
+        state: present
+      when: "prometheus_namespace not in namespace_list.stdout_lines"
+
+    - name: Templating values.yml
+      template:
+        src: "roles/prometheus_operator/templates/values.yml.j2"
+        dest: "/home/{{ansible_user}}/values.yml"
+        mode: '0644'
+
+    - name: Install helm chart for prometheus
+      command: "{{helm_location}}/helm install -n {{prometheus_namespace}} {{prometheus_release_name}} 'bitnami/prometheus-operator' -f /home/{{ansible_user}}/values.yml --wait"
+      register: helm_prometheus_result
+      failed_when: "'Error' in helm_prometheus_result.stderr"
+
+    - debug:
+       var: helm_prometheus_result.stdout_lines
+
+    - name: Wait for all prometheus pods to be created
+      command: kubectl -n "{{prometheus_namespace}}" wait --for=condition=Ready pods --all --timeout=90s
+      register: prometheus_pod_result
+      failed_when: "'Error' in prometheus_pod_result.stderr"
+
+    - name: Wait for all prometheus daemonset apps to be ready
+      command: kubectl -n {{prometheus_namespace}} rollout status daemonset.apps/prometheus-operator-node-exporter
+      register: prometheus_daemonset_status
+      failed_when: "'Error' in prometheus_daemonset_status"
+
+    - name: Check if Prometheus Operator is accessible.
+      uri:
+        url: http://127.0.0.1:{{prometheus_nodePort}}
+        method: GET
+        status_code: 200
+      register: prometheus_url_status
+
+    - debug:
+        var: prometheus_url_status.msg
+
+    - name: Remove old file values.yml
+      file:
+        path: "/home/{{ansible_user}}/values.yml"
+        state: absent
+      changed_when: True
+
+  when: "'prometheus' not in if_prometheus.stdout and 'deployed' not in if_prometheus.stdout"

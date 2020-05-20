@@ -3,7 +3,30 @@ istio_release_name: istio
 istio_init_release_name: istio-init
 istio_namespace: istio-system
 istio_cluster_name: msra
-istio_values: "roles/istio/templates/istio-values.yaml"
-kiali_secret: "roles/istio/templates/secret.yaml"
 helm_location: "/usr/local/bin/"
 
+kiali_nodePort: 32032
+istio_service: NodePort
+istio_hub: docker.io/istio
+istio_tag: 1.5.1
+
+global_proxy_image: proxyv2
+global_proxy_resources_requests_cpu: 100m
+global_proxy_resources_requests_memory: 128Mi
+global_proxy_resources_limits_cpu: 2000m
+global_proxy_resources_limits_memory: 1024Mi
+global_proxy_concurrency: 2
+
+global_proxy_init_image: proxyv2
+global_proxy_init_resources_limits_cpu: 100m
+global_proxy_init_resources_limits_memory: 50Mi
+global_proxy_init_resources_requests_cpu: 10m
+global_proxy_init_resources_requests_memory: 10Mi
+
+global_defaultResources_requests_cpu: 10m
+global_defaultResources_requests_memory: 128Mi
+global_defaultResources_limits_cpu: 100m
+global_defaultResources_limits_memory: 128Mi
+
+kiali_username: admin
+kiali_password: admin

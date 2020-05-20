@@ -2,15 +2,15 @@ apiVersion: v1
 kind: Service
 metadata:
   name: kibana
-  namespace: monitoring
+  namespace: {{kibana_namespace}}
   labels:
     app: kibana
 spec:
-  type: NodePort
+  type: {{kibana_service}}
   ports:
   - port: 5601
     targetPort: 5601
-    nodePort: 30016
+    nodePort: {{kibana_nodePort}}
     name: kibana-http
   selector:
     app: kibana
@@ -19,11 +19,11 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: kibana
-  namespace: monitoring
+  namespace: {{kibana_namespace}}
   labels:
     app: kibana
 spec:
-  replicas: 1
+  replicas: {{kibana_replica_count}}
   selector:
     matchLabels:
       app: kibana
@@ -34,15 +34,15 @@ spec:
     spec:
       containers:
       - name: kibana
-        image: docker.elastic.co/kibana/kibana:7.3.0
+        image: {{kibana_image}}
         resources:
           limits:
-            cpu: 1000m
+            cpu: {{kibana_resources_limits_cpu}}
           requests:
-            cpu: 100m
+            cpu: {{kibana_resources_requests_cpu}}
         env:
           - name: ELASTICSEARCH_URL
-            value: http://elasticsearch:9200
+            value: {{elasticsearch_url}}
         ports:
         - containerPort: 5601
 

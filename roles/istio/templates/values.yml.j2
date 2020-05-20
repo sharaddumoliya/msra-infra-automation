@@ -1,0 +1,66 @@
+gateways:
+  enabled: true
+  istio-ingressgateway:
+   type: {{istio_service}}
+#
+# addon grafana configuration
+#
+grafana:
+  enabled: true
+
+#
+# addon prometheus configuration
+#
+prometheus:
+  enabled: true
+#
+# addon kiali tracing configuration
+#
+kiali:
+  enabled: true
+
+global:
+  # Default hub for Istio images.
+  # Releases are published to docker hub under 'istio' project.
+  # Dev builds from prow are on gcr.io
+  hub: {{istio_hub}}
+
+  # Default tag for Istio images.
+  tag: {{istio_tag}}
+
+  proxy:
+    # use fully qualified image names for alternate path to proxy.
+    image: {{global_proxy_image}}
+
+    # Resources for the sidecar.
+    resources:
+      requests:
+        cpu: {{global_proxy_resources_requests_cpu}}
+        memory: {{global_proxy_resources_requests_memory}}
+      limits:
+        cpu: {{global_proxy_resources_limits_cpu}}
+        memory: {{global_proxy_resources_limits_memory}}
+    # Controls number of Proxy worker threads.
+    # If set to 0, then start worker thread for each CPU thread/core.
+    concurrency: {{global_proxy_concurrency}}
+  proxy_init:
+    # Base name for the istio-init container, used to configure iptables.
+    image: {{global_proxy_init_image}}
+    resources:
+      limits:
+        cpu: {{global_proxy_init_resources_limits_cpu}}
+        memory: {{global_proxy_init_resources_limits_memory}}
+      requests:
+        cpu: {{global_proxy_init_resources_requests_cpu}}
+        memory: {{global_proxy_init_resources_requests_memory}}
+  # A minimal set of requested resources to applied to all deployments so that
+  # Horizontal Pod Autoscaler will be able to function (if set).
+  # Each component can overwrite these default values by adding its own resources
+  # block in the relevant section below and setting the desired resources values.
+  defaultResources:
+    requests:
+      cpu: {{global_defaultResources_requests_cpu}}
+    #   memory: {{global_defaultResources_requests_memory}}
+    # limits:
+    #   cpu: {{global_defaultResources_limits_cpu}}
+    #   memory: {{global_defaultResources_limits_memory}}

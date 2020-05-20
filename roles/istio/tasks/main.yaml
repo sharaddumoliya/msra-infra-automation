@@ -1,13 +1,22 @@
 ---
-# Developer: Sharad Dumoliya
-# Script name: main.yaml
-# Description:  Istio deployment
-# Version: 1.0.0
-# Date of development: 03-Apr-2020
+####################################################
+# Developer: Sharad Dumoliya                       #
+# Script name: main.yaml                           #
+# Description:  Istio-Kiali deployment             #
+# Version: 1.0.0                                   #
+# Date of development: 16-Apr-2020                 #
+####################################################
 
 - name: Checking if Istio-Kiali is installed in  "{{istio_namespace}}"
   command: "{{helm_location}}/helm ls -n {{istio_namespace}}"
   register: if_istio
+  failed_when: "'Error' in if_istio.stderr"
+
+- set_fact:
+    message: "{{ ((task_type == 'install') and ('deployed' in if_istio.stdout)) or ((task_type == 'uninstall') and ('deployed' in if_istio.stdout)) | ternary('istio is installed', 'istio is not installed') }}"
+
+- debug:
+    msg: "{{message}}"
 
 - block:
     - debug:
@@ -16,13 +25,14 @@
     - name: Check the deployed pod status
       shell: kubectl --namespace "{{istio_namespace}}" get pods --field-selector=status.phase=Running
       register: istio_pod_status
+      failed_when: "'Error' in istio_pod_status.stderr"
 
     - debug:
         var: istio_pod_status.stdout_lines
 
     - name: Check if Kiali is accessible.
       uri:
-        url: http://127.0.0.1:32500
+        url: http://{{groups['k8s-master'][0]}}:{{kiali_nodePort}}
         method: GET
         status_code: 200
       register: kiali_url_status
@@ -36,23 +46,9 @@
   block:
 
     - name: Add Stable Helm Repo.
-      command: /usr/local/bin/helm repo add istio.io https://storage.googleapis.com/istio-release/releases/1.5.1/charts/
+      command: "{{helm_location}}/helm repo add istio.io https://storage.googleapis.com/istio-release/releases/1.5.1/charts/"
       register: helm_repo_results
       changed_when: False
-
-    - name: List Helm charts.
-      command: /usr/local/bin/helm search repo istio.io
-      register: helm_list_results
-      changed_when: False
-
-    - name: Install Python Dependecies for helm
-      pip:
-        name:
-          - pyhelm
-          - grpcio
-          - openshift
-        extra_args: --user
-        executable: /usr/bin/pip3
 
     - name: Create a k8s namespace
       k8s:
@@ -61,30 +57,96 @@
         kind: Namespace
         state: present
 
+    - name: Templating secret.yml
+      template:
+        src: "roles/istio/templates/secret.yml.j2"
+        dest: "/home/{{ansible_user}}/secret.yml"
+        mode: '0644'
+
     - name: Create Kiali secret
-      k8s:
-        state: present
-        definition:
-          apiVersion: v1
-          kind: Secret
-          metadata:
-              name: kiali
-              namespace: istio-system
-              labels:
-                app: kiali
-                chart: kiali
-                heritage: Helm
-                release: istio
-          type: Opaque
-          data:
-              username: YWRtaW4=   # admin
-              passphrase: YWRtaW4= # admin
-      register: Secret_Kiali
+      command: kubectl --namespace "{{istio_namespace}}" apply -f /home/{{ansible_user}}/secret.yml
+      register: kiali_secret_result
+      failed_when: "'Error' in kiali_secret_result.stderr"
+
+    - debug:
+       var: kiali_secret_result.stdout_lines
+
+    - name: Templating values.yml
+      template:
+        src: "roles/istio/templates/values.yml.j2"
+        dest: "/home/{{ansible_user}}/values.yml"
+        mode: '0644'
+      register: template_values_result
+
+    - name: Delete all previously created istio ClusterRole
+      shell: kubectl delete --ignore-not-found ClusterRole istio-init-istio-system \
+               istio-citadel-istio-system \
+               istio-galley-istio-system \
+               istio-init-istio-system \
+               istio-mixer-istio-system \
+               istio-pilot-istio-system \
+               istio-reader \
+               istio-security-post-install-istio-system \
+               istio-sidecar-injector-istio-system \
+               prometheus-istio-system \
+               istio-grafana-post-install-istio-system \
+               kiali \
+               kiali-viewer
+      register: istio_cr_result
+      failed_when: "'Error' in istio_cr_result.stderr"
+
+    - debug:
+       var: istio_cr_result.stdout_lines
+
+    - name: Delete all previously created istio ClusterRoleBinding
+      shell: kubectl delete --ignore-not-found ClusterRoleBinding istio-init-admin-role-binding-istio-system \
+               istio-citadel-istio-system \
+               istio-galley-admin-role-binding-istio-system \
+               istio-init-admin-role-binding-istio-system \
+               istio-mixer-admin-role-binding-istio-system \
+               istio-multi \
+               istio-pilot-istio-system \
+               istio-reader \
+               istio-security-post-install-role-binding-istio-system \
+               istio-sidecar-injector-admin-role-binding-istio-system \
+               prometheus-istio-system \
+               istio-kiali-admin-role-binding-istio-system \
+               istio-grafana-post-install-role-binding-istio-system
+      register: istio_crb_result
+      failed_when: "'Error' in istio_crb_result.stderr"
+
+    - debug:
+       var: istio_crb_result.stdout_lines
+
+    - name: Delete all previously created istio MutatingWebhookConfiguration
+      shell: kubectl delete --ignore-not-found MutatingWebhookConfiguration istio-sidecar-injector
+      register: istio_mwc_result
+      failed_when: "'Error' in istio_mwc_result.stderr"
+
+    - debug:
+       var: istio_mwc_result.stdout_lines
+
+    - name: Delete all previously created istio ValidatingWebhookConfiguration
+      shell: kubectl delete --ignore-not-found ValidatingWebhookConfiguration istio-galley
+      register: istio_vwc_result
+      failed_when: "'Error' in istio_vwc_result.stderr"
+
+    - debug:
+       var: istio_vwc_result.stdout_lines
+
+    - name: Delete all previously created istio service
+      shell: kubectl -n {{istio_namespace}} delete --ignore-not-found service kiali
+      register: istio_svc_result
+      failed_when: "'Error' in istio_svc_result.stderr"
+
+    - debug:
+       var: istio_svc_result.stdout_lines
+
 
     - name: Install Istio Custom Resource Definitions
-      command: /usr/local/bin/helm install --namespace "{{istio_namespace}}" "{{istio_init_release_name}}" istio.io/istio-init
+      command: "{{helm_location}}/helm install -n {{istio_namespace}} {{istio_init_release_name}} istio.io/istio-init --wait"
       register: helm_istio_init_result
-      failed_when: "'ERROR' in helm_istio_init_result.stderr"
+      failed_when: "'Error' in helm_istio_init_result.stderr"
 
     - debug:
         var: helm_istio_init_result.stdout_lines
@@ -93,9 +155,9 @@
       command: kubectl -n "{{istio_namespace}}" wait --for=condition=complete job --all
 
     - name: Install Istio’s core components
-      command: /usr/local/bin/helm install --namespace "{{istio_namespace}}" "{{istio_release_name}}" istio.io/istio --values "{{istio_values}}"
+      command: "{{helm_location}}/helm install -n {{istio_namespace}} {{istio_release_name}} istio.io/istio -f /home/{{ansible_user}}/values.yml --wait --timeout=600s"
       register: helm_istio_result
-      failed_when: "'ERROR' in helm_istio_result.stderr"
+      failed_when: "'Error' in helm_istio_result.stderr"
 
     - debug:
         var: helm_istio_result.stdout_lines
@@ -107,13 +169,13 @@
           apiVersion: v1
           kind: Service
           metadata:
-            namespace: istio-system
+            namespace: "{{istio_namespace}}"
             name: kiali
           spec:
             type: NodePort
             ports:
               - name: http-kiali
-                nodePort: 32500
+                nodePort: "{{kiali_nodePort}}"
                 port: 20001
                 targetPort: 20001
                 protocol: TCP
@@ -123,7 +185,7 @@
 
     - name: Check if Kiali is accessible.
       uri:
-        url: http://127.0.0.1:32500
+        url: http://{{groups['k8s-master'][0]}}:{{kiali_nodePort}}
         method: GET
         status_code: 200
       register: kiali_url_status
@@ -131,5 +193,48 @@
     - debug:
         var: kiali_url_status.msg
 
+    - name: Remove old file values.yml
+      file:
+        path: "/home/{{ansible_user}}/values.yml"
+        state: absent
+      changed_when: False
 
-  when: "'istio' not in if_istio.stdout and 'deployed' not in if_istio.stdout"
+  when: "'install' == task_type and 'istio' not in if_istio.stdout and 'deployed' not in if_istio.stdout"
+
+- name: Unistalling Istio-Kiali
+  block:
+    - name: Uninstall Istio’s core components using helm
+      command: "{{helm_location}}/helm uninstall --namespace {{istio_namespace}} {{istio_release_name}}"
+      register: helm_istio_result
+      
+    - debug:
+        var: helm_istio_result.stdout_lines
+        
+    - name: Uninstall Istio Custom Resource Definitions
+      command: "{{helm_location}}/helm uninstall -n {{istio_namespace}} {{istio_init_release_name}}"
+      register: helm_istio_init_result
+      failed_when: "'Error' in helm_istio_init_result.stderr"
+
+    - debug:
+        var: helm_istio_init_result.stdout_lines    
+
+    - name: Checking CRDs status in "{{istio_namespace}}"
+      shell: "kubectl -n {{istio_namespace}} get crds -o name | grep istio"
+      register: istio_crd_status
+    - debug:
+        var: istio_crd_status.stdout_lines
+
+    - name: Delete CRD for istio
+      command: "kubectl -n {{istio_namespace}} delete --ignore-not-found {{istio_crd_status.stdout}}"
+      register: crd_delete_status
+      when: istio_crd_status.stdout_lines != ''
+    - debug:
+        var: crd_delete_status.stdout_lines
+        
+  when: "'uninstall' == task_type and 'istio' in if_istio.stdout and 'deployed' in if_istio.stdout"
+  
+- name: Playbook Signature
+  block:
+    - debug:
+        msg: "No 'task_type' supplied. Playbook signature:   ansible-playbook -i <hosts file> <playbook> --extra-vars 'task_type=<install/uninstall>'"
+  when: "task_type == '' or ('install' or 'uninstall') not in task_type"

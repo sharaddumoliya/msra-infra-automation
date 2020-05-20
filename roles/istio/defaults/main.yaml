@@ -1,4 +1,6 @@
 ---
 
 istio_helm_charts: istio.io https://storage.googleapis.com/istio-release/releases/1.5.1/charts/
+helm_location: /usr/local/bin
+ansible_user: ESHADUM
 
