@@ -1,7 +1,0 @@
----
-
-consul_release_name: consul
-consul_namespace: consul-ns
-consul_cluster_name: msra
-consul_values: "roles/consul/templates/values.yaml"
-helm_location: "/usr/local/bin/"

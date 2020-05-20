@@ -1,0 +1,21 @@
+---
+# Developer: ESHADUM Sharad Dumoliya
+# Script name: prometheus_operator.yml
+# Description: name: Prometheus-Operator Helm chart deployment values variables
+# Version: 1.0.0
+# Date of development: 09-Apr-2020
+prometheus_operator_storage_class: fast
+alertmanager_size: 50Gi
+prometheus_size: 50Gi
+alertmanager_retention: 120h
+alertmanager_replicas: 2
+prometheus_replicas: 1
+prometheus_operator_service_type: NodePort
+prometheus_nodePort: 30090
+alertmanager_port: 30903
+grafana_nodePort: 32323
+prometheus_operator_user: admin
+prometheus_operator_password: admin
+prometheus_release_name: prometheus-operator
+prometheus_namespace: prometheus-operator-ns
+prometheus_operator_cluster_name: msra

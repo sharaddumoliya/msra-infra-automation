@@ -1,0 +1,15 @@
+---
+####################################################
+# Developer: ESHADUM Sharad Dumoliya               #
+# Script name: main.yml                            #
+# Description: Kafka Deployment                    #
+# Version: 1.0.0                                   #
+# Date of development:07-05-2020                   #
+####################################################
+- hosts: k8s-master
+  become: yes
+
+  roles:
+    - kafka
+  vars:
+    task_type: ""

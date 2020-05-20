@@ -1,0 +1,30 @@
+---
+
+consul_release_name: consul
+consul_namespace: consul-ns
+consul_cluster_name: msra
+consul_values: "roles/consul/templates/values.yaml"
+
+consul_storage_class: fast
+consul_size: 8Gi
+consul_replica_count: 3
+consul_nodePort: 32600
+
+vP_resources_limits_cpu: 100m
+vP_resources_limits_memory: 128Mi
+vP_resources_requests_cpu: 100m
+vP_resources_requests_memory: 128Mi
+
+consul_clusterDomain: cluster.local
+consul_datacenterName: dc1
+consul_domain: consul
+
+resources_limits_memory: 256Mi
+resources_limits_cpu: 100m
+resources_requests_memory: 256Mi
+resources_requests_cpu: 100m
+
+metrics_limits_cpu: 100m
+metrics_limits_memory: 128Mi
+metrics_requests_cpu: 100m
+metrics_requests_memory: 128Mi

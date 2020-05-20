@@ -4,10 +4,11 @@
 # Description:  Istio and Kiali deployment
 # Version: 1.0.0
 # Date of development: 07-Apr-2020
----
-# istio deployment playbook on K8s
-- hosts: localhost
+
+- hosts: k8s-master
   become: yes
 
   roles:
     - istio
+  vars:
+    task_type: ""
