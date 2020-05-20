@@ -1,0 +1,25 @@
+---
+
+consul_release_name: consul
+consul_namespace: consul-ns
+consul_cluster_name: msra
+
+consul_domain: consul
+consul_Component: consul
+consul_Image: "consul"
+consul_ImageTag: "1.5.3"
+consul_DatacenterName: dc1
+
+
+consul_storage_class: fast
+consul_size: 1Gi
+consul_replica_count: 3
+consul_uiService_type: NodePort
+consul_nodePort: 32600
+
+Resources_requests_cpu: 100m
+Resources_requests_memory: 256Mi
+Resources_limits_cpu: 500m
+Resources_limits_memory: 512Mi
+
+consul_maxUnavailable: 1

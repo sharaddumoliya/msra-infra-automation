@@ -1,0 +1,20 @@
+---
+grafana_release_name: grafana
+grafana_namespace: grafana-ns
+grafana_cluster_name: msra
+
+
+grafana_storage_class: fast
+grafana_nodePort: 32323
+grafana_password: admin
+grafana_service: NodePort
+
+grafana_replica_count: 1
+
+grafana_resources_cpu: 500m
+grafana_resources_memory: 1Gi
+
+grafana_requests_cpu: 250m
+grafana_requests_memory: 256Mi
+
+grafana_size: 10Gi

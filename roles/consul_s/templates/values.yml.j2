@@ -1,0 +1,33 @@
+Domain: {{consul_domain}}
+## Used as selector
+Component: {{consul_Component}}
+Replicas: {{consul_replica_count}}
+
+Image: {{consul_Image}}
+ImageTag: {{consul_ImageTag}}
+
+Resources:
+  requests:
+    cpu: {{Resources_requests_cpu}}
+    memory: {{Resources_requests_memory}}
+  limits:
+    cpu: {{Resources_limits_cpu}}
+    memory: {{Resources_limits_memory}}
+
+Storage: {{consul_size}}
+
+## Datacenter name for consul.
+DatacenterName: {{consul_DatacenterName}}
+
+## consul data Persistent Volume Storage Class
+StorageClass: {{consul_storage_class}}
+
+maxUnavailable: {{consul_maxUnavailable}}
+
+
+## Create dedicated UI service
+uiService:
+  enabled: true
+  type: {{consul_uiService_type}}
+  
+

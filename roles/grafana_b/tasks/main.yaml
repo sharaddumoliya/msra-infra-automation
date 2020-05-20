@@ -6,8 +6,9 @@
 # Date of development: 31-Mar-2020
 
 - name: Checking if Grafana is installed in namespace {{grafana_namespace}}
-  command: "{{helm_location}}helm ls -n {{grafana_namespace}}"
+  command: "{{helm_location}}/helm ls -n {{grafana_namespace}}"
   register: if_grafana
+  failed_when: "'Error' in if_grafana.stderr"
 
 - block:
     - debug:
@@ -16,6 +17,7 @@
     - name: Check the deployed pod status in namespace {{grafana_namespace}}"
       command: kubectl -n  {{grafana_namespace}} get pods --field-selector=status.phase=Running
       register: grafana_pod_status
+      failed_when: "'Error' in grafana_pod_status.stderr"
 
     - debug:
         var: grafana_pod_status.stdout_lines
@@ -23,13 +25,14 @@
     - name: Check version of Grafana Server installed in namespace {{grafana_namespace}}
       shell: kubectl exec -it -n {{grafana_namespace}} $(kubectl -n {{grafana_namespace}} get pods -o name) -- grafana-server -v
       register: grafana_version_status
+      failed_when: "'Error' in grafana_version_status.stderr"
 
     - debug:
         var: grafana_version_status.stdout_lines
 
     - name: Check if Grafana is accessible.
       uri:
-        url: http://127.0.0.1:32323
+        url: http://127.0.0.1:{{grafana_nodePort}}
         method: GET
         status_code: 200
       register: grafana_url_status
@@ -49,10 +52,21 @@
         kind: Namespace
         state: present
 
+    - name: Add Bitnami Helm Repo.
+      command: "{{helm_location}}/helm repo add bitnami {{bitnami_helm_charts}}"
+      register: helm_repo_results
+      changed_when: False
+
+    - name: Templating values.yml
+      template:
+        src: "roles/grafana/templates/values.yml.j2"
+        dest: "/home/{{ansible_user}}/values.yml"
+        mode: '0644'
+
     - name: Install helm chart for grafana in namespace {{grafana_namespace}}
-      command: /usr/local/bin/helm install --namespace "{{grafana_namespace}}"  "{{grafana_release_name}}" stable/grafana --values "{{grafana_values}}"
+      command: "{{helm_location}}/helm install --namespace {{grafana_namespace}} {{grafana_release_name}} bitnami/grafana -f /home/{{ansible_user}}/values.yml --wait"
       register: helm_grafana_result
-      failed_when: "'ERROR' in helm_grafana_result.stderr"
+      failed_when: "'Error' in helm_grafana_result.stderr"
 
     - debug:
         var: helm_grafana_result.stdout_lines
@@ -60,13 +74,14 @@
     - name: Wait for all grafana pods to be created
       command: kubectl -n "{{grafana_namespace}}" wait --for=condition=Ready pods --all --timeout=90s
       register: grafana_pod_status
+      failed_when: "'Error' in grafana_pod_status.stderr"
 
     - debug:
         var: grafana_pod_status.stdout_lines
 
     - name: Check if Grafana is accessible.
       uri:
-        url: http://127.0.0.1:32323
+        url: http://127.0.0.1:{{grafana_nodePort}}
         method: GET
         status_code: 200
       register: grafana_url_status
@@ -74,4 +89,10 @@
     - debug:
         var: grafana_url_status.msg
 
+    - name: Remove old file values.yml
+      file:
+        path: "/home/{{ansible_user}}/values.yml"
+        state: absent
+      changed_when: False
+      
   when: "'grafana' not in if_grafana.stdout and 'deployed' not in if_grafana.stdout"

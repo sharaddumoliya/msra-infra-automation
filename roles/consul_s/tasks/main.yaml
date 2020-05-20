@@ -1,0 +1,154 @@
+---
+####################################################
+# Developer: Sharad Dumoliya                       #
+# Script name: main.yaml                           #
+# Description:  Consul deployment                  #
+# Version: 1.0.0                                   #
+# Date of development: 27-Apr-2020                 #
+####################################################
+
+- name: Checking if Consul is installed in  "{{consul_namespace}}"
+  command: "{{helm_location}}/helm ls -n {{consul_namespace}}"
+  register: if_consul
+  failed_when: "'Error' in if_consul"
+
+- set_fact:
+    message: "{{ ((task_type == 'install') and ('deployed' in if_consul.stdout)) or ((task_type == 'uninstall') and ('deployed' in if_consul.stdout)) | ternary('consul is installed', 'consul is not installed') }}"
+
+- debug:
+    msg: "{{message}}"
+
+
+- block:
+    - debug:
+        msg: "Consul is already deployed in {{consul_namespace}}"
+
+    - name: Check the deployed pod status
+      shell: kubectl -n {{consul_namespace}} exec $(kubectl -n {{consul_namespace}} get pods -l='release=consul' -o name) -- consul members | grep server
+      register: consul_pod_status
+      failed_when: "'Error' in consul_pod_status"
+
+    - debug:
+        var: consul_pod_status.stdout_lines
+
+    - name: Check the cluster leader
+      shell: kubectl -n {{consul_namespace}} exec -it consul-0 -- consul operator raft list-peers
+      register: consul_cluster_status
+      failed_when: "'Error' in consul_cluster_status"
+
+    - debug:
+        var: consul_cluster_status.stdout_lines
+
+    - name: Check if Consul is accessible.
+      uri:
+        url: http://{{groups['k8s-master'][0]}}:{{consul_nodePort}}
+        method: GET
+        status_code: 200
+      register: consul_url_status
+
+    - debug:
+        var: consul_url_status.msg
+
+  when: "'consul' in if_consul.stdout and 'deployed' in if_consul.stdout"
+
+- name: Installing Consul
+  block:
+
+    - name: Create {{consul_namespace}} namespace
+      k8s:
+        name: "{{consul_namespace}}"
+        api_version: v1
+        kind: Namespace
+        state: present
+
+    - name: Templating values.yml
+      template:
+        src: "roles/consul/templates/values.yml.j2"
+        dest: "/home/{{ansible_user}}/values.yml"
+        mode: '0644'
+
+    - name: Install helm chart for consul
+      command: "{{helm_location}}/helm install --namespace {{consul_namespace}} {{consul_release_name}} stable/consul -f /home/{{ansible_user}}/values.yml --wait"
+      register: helm_consul_result
+      failed_when: "'Error' in helm_consul_result.stderr"
+
+    - debug:
+       var: helm_consul_result.stdout_lines
+
+    - name: Change Consul UI service type to NodePort
+      k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            namespace: "{{consul_namespace}}"
+            name: consul-ui
+          spec:
+            type: NodePort
+            ports:
+              - name: http
+                nodePort: "{{consul_nodePort}}"
+                port: 8500
+                protocol: TCP
+                targetPort: 8500
+      register: service_consul
+
+    - name: Wait for all consul pods to be created
+      command: kubectl -n {{consul_namespace}} rollout status statefulset/consul
+      register: consul_statefulset_status
+      failed_when: "'Error' in consul_statefulset_status"
+
+    - debug:
+        var: consul_statefulset_status.stdout_lines
+
+    - name: Check if Consul is accessible.
+      uri:
+        url: http://{{groups['k8s-master'][0]}}:{{consul_nodePort}}/ui
+        method: GET
+        status_code: 200
+      until: consul_url_status is succeeded
+      retries: 5
+      delay: 30
+      register: consul_url_status
+
+    - debug:
+        var: consul_url_status.msg
+
+    - name: Remove old file values.yml
+      file:
+        path: "/home/{{ansible_user}}/values.yml"
+        state: absent
+      changed_when: True
+
+  when: "'install' == task_type and 'consul' not in if_consul.stdout and 'deployed' not in if_consul.stdout"
+
+- name: Unistalling Consul
+  block:
+    - name: Uninstall consul using helm
+      command: "{{helm_location}}/helm uninstall --namespace {{consul_namespace}} {{consul_release_name}}"
+      register: helm_consul_result
+
+    - debug:
+        var: helm_consul_result.stdout_lines
+
+    - name: Checking PVC status in "{{consul_namespace}}"
+      shell: "kubectl -n {{consul_namespace}} get pvc -o name"
+      register: consul_pvc_status
+    - debug:
+        var: consul_pvc_status.stdout_lines
+
+    - name: delete pvc for consul
+      command: "kubectl -n {{consul_namespace}} delete {{consul_pvc_status.stdout}}"
+      register: pvc_delete_status
+      when: consul_pvc_status.stdout_lines != ''
+    - debug:
+        var: pvc_delete_status.stdout_lines
+
+  when: "'uninstall' == task_type and 'consul' in if_consul.stdout and 'deployed' in if_consul.stdout"
+
+- name: Playbook Signature
+  block:
+    - debug:
+        msg: "No 'task_type' supplied. Playbook signature:   ansible-playbook -i <hosts file> <playbook> --extra-vars 'task_type=<install/uninstall>'"
+  when: "task_type == '' or ('install' or 'uninstall') not in task_type"

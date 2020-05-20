@@ -1,0 +1,4 @@
+---
+bitnami_helm_charts: https://charts.bitnami.com/bitnami
+helm_location: /usr/local/bin
+ansible_user: ESHADUM
