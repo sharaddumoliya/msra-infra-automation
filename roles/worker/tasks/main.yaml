@@ -1,5 +1,11 @@
 ---
-
+####################################################
+# Developer: Sharad Dumoliya                       #
+# Script name: main.yaml                           #
+# Description:  Kubernetes Worker node deployment  #
+# Version: 1.0.0                                   #
+# Date of development: 26-May-2020                 #
+####################################################
   - name: Disabling Swap on all nodes
     shell: swapoff -a
 
