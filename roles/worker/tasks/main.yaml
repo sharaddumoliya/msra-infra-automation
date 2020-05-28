@@ -1,0 +1,90 @@
+---
+
+  - name: Disabling Swap on all nodes
+    shell: swapoff -a
+
+  - name: Commenting Swap entries in /etc/fstab
+    replace:
+     path: /etc/fstab
+     regexp: '(.*swap*)'
+     replace: '\1'
+
+  - name: Creating a repository file for Kubernetes
+    file:
+     path: /etc/yum.repos.d/kubernetes.repo
+     state: touch
+
+  - name: Adding repository details in Kubernetes repo file.
+    blockinfile:
+     path: /etc/yum.repos.d/kubernetes.repo
+     block: |
+      [kubernetes]
+      name=Kubernetes
+      baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+      enabled=1
+      gpgcheck=1
+      repo_gpgcheck=1
+      gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
+        https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+
+  - name: Installing Docker
+    shell: |
+     yum install -y yum-utils device-mapper-persistent-data lvm2
+     yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+     yum update -y && yum install -y containerd.io-1.2.13 docker-ce-19.03.8 docker-ce-cli-19.03.8
+    register: install_docker_output
+
+  - debug:
+     var: install_docker_output
+
+  - name: Installing required packages
+    yum:
+     name: "{{ packages }}"
+     state: present
+    register: install_packages_output
+
+  - debug:
+     var: install_packages_output
+
+  - name: Starting and Enabling the required services
+    service:
+     name: "{{ item }}"
+     state: started
+     enabled: yes
+    with_items: "{{ services }}"
+    register: service_start_output
+
+  - debug:
+     var: service_start_output
+
+  - name: starting firewalld services
+    service: name=firewalld state=started enabled=yes
+    register: service_firewalld_output
+
+  - debug:
+     var: service_firewalld_output
+
+  - name: Allow Network Ports in Firewalld
+    firewalld:
+     port: "{{ item }}"
+     state: enabled
+     permanent: yes
+     immediate: yes
+    with_items: "{{ ports }}"
+    register: port_output
+
+  - debug:
+     var: port_output
+
+  - name: Enabling Bridge Firewall Rule
+    shell: "echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables"
+
+  - name: Resetting kubeadm
+    shell: kubeadm reset -f
+    register: kubeadm_reset_output
+
+  - name: Copy the join command to server location
+    copy: src=join-command dest=/tmp/join-command.sh mode=0777
+
+  - name: Join the node to cluster
+    command: sh /tmp/join-command.sh

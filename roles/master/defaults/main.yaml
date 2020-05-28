@@ -1,0 +1,5 @@
+---
+helm_location: /usr/local/bin
+ansible_user: ESHADUM
+
+
