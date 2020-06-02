@@ -1,0 +1,56 @@
+---
+
+- name: Install iSCSI client on worker nodes
+  shell: yum install iscsi-initiator-utils -y
+
+- name: check that the initiator name is configured
+  shell: cat /etc/iscsi/initiatorname.iscsi
+
+- name: Enable and start the iscsid service
+  shell: systemctl enable iscsid && sudo systemctl start iscsid
+ 
+- name: Check iSCSI service is running 
+  shell: systemctl status iscsid
+
+
+kubectl config set-context NAME [--cluster=cluster_nickname] [--user=user_nickname] [--namespace=namespace]
+#eg: kubectl config set-context admin-ctx --cluster=gke_strong-eon-153112_us-central1-a_rocket-test2 --user=cluster-admin
+
+kubectl config use-context admin-ctx
+
+- name: Create {{openebs_namespace}} namespace
+  k8s:
+     name: "{{openebs_namespace}}"
+     api_version: v1
+     kind: Namespace
+     state: present
+
+- name: Install openebs
+  shell: helm install openebs -n {{ openebs_namespace }} stable/openebs -f values.yaml
+  register: openebs_out
+  until: "'The OpenEBS has been installed' in openebs_out.stdout"
+  delay: 120
+  retries: 5
+  
+- name: Check if provisioner is deployed
+  shell: kubectl get pods -n "{{ openebs_namespace }}" | grep "openebs-provisioner"
+  register: deployment
+  until: "'Running' in deployment.stdout"
+  delay: 60
+  retries: 15
+  
+- name: Check if maya-apiserver is deployed
+  shell: kubectl get pods -n "{{ openebs_namespace }}" | grep "openebs-maya-apiserver"
+  register: api_server
+  until: "'Running' in api_server.stdout"
+  delay: 60
+  retries: 15
+
+- name: Create Storage Class
+  shell: kubectl apply -f storageclass.yaml
+    
+- name: Check if storage classes are created
+  shell: kubectl get sc
+
+
+ 

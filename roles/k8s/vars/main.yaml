@@ -1,4 +1,4 @@
-ad_addr: 192.168.168.136
+ad_addr: 192.168.168.141
 cidr_v: 172.16.0.0/16
 
 packages:
@@ -10,3 +10,5 @@ services:
 - kubelet
 
 token_file: join_token
+
+

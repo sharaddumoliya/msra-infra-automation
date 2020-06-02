@@ -1,0 +1,6 @@
+---
+
+openebs_release_name: openebs
+openebs_namespace: openebs
+openebs_operator_cluster_name: msra
+

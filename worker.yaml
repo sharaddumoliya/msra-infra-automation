@@ -8,7 +8,7 @@
 # Date of development: 26-May-2020                 #
 ####################################################
 
-- hosts: kubernetes-worker-nodes
+- hosts: k8s-worker-nodes
   become: yes
 
   roles:

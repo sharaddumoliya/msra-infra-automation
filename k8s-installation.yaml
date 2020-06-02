@@ -3,13 +3,11 @@
 ####################################################
 # Developer: Sharad Dumoliya                       #
 # Script name: main.yaml                           #
-# Description:  Kubernetes Master node deployment  #
+# Description:  Kubernetes deployment              #
 # Version: 1.0.0                                   #
 # Date of development: 26-May-2020                 #
 ####################################################
 
-- hosts: k8s-master-nodes
-  become: yes
-
+- hosts: "k8s-{{ node_type }}"
   roles:
-    - master
+   - role: "{{ node_type }}"
