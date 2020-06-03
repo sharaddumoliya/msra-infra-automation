@@ -1,0 +1,28 @@
+---
+- hosts: k8s-worker
+
+
+  tasks:
+  - name: Install iSCSI client on worker nodes
+    shell: yum install iscsi-initiator-utils -y
+    register: client_install_output
+
+  - debug:
+     var: client_install_output.stdout_lines
+
+  - name: check that the initiator name is configured
+    shell: cat /etc/iscsi/initiatorname.iscsi
+    register: initiator_name
+
+  - debug:
+     var: initiator_name.stdout
+
+  - name: Enable and start the iscsid service
+    shell: systemctl enable iscsid && sudo systemctl start iscsid
+
+  - name: Check iSCSI service is running
+    shell: systemctl status iscsid
+    register: service_output
+
+  - debug:
+     var: service_output.stdout

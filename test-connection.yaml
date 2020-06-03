@@ -1,0 +1,20 @@
+---
+- hosts: k8s-master
+
+  tasks:
+  - name: Getting hostname
+    shell: hostname
+    register: output
+
+  - debug:
+      var: output.stdout
+
+- hosts: k8s-worker
+
+  tasks:
+      - name: Getting hostname
+        shell: hostname
+        register: output
+
+      - debug:
+          var: output.stdout

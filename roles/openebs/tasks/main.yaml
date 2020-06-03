@@ -1,28 +1,16 @@
 ---
 
-- name: Install Python Dependecies for helm
-  pip:
-        name:
-          - pyhelm
-          - grpcio
-          - openshift
-        extra_args: --user
-        executable: /usr/bin/pip
-
 - name: Create {{openebs_namespace}} namespace
-#  shell: "kubectl create ns {{ openebs_namespace }}"
-  k8s:
-     name: "{{openebs_namespace}}"
-     api_version: v1
-     kind: Namespace
-     state: present
+  shell: "kubectl create ns {{ openebs_namespace }}"
 
 - name: Set cluster-admin user context
-  shell:
+  shell: "kubectl config set-context {{ openebs_context_name }} --cluster={{ openebs_operator_cluster_name }} --user={{ openebs_user_name }}"
 
+- name: use context
+  shell: "kubectl config use-context {{ openebs_context_name }}"
 
 - name: Install openebs
-  shell: "{{helm_location}}/helm install -n {{ openebs_namespace }} {{ openebs_release_name }} stable/openebs"
+  shell: "{{helm_location}}/helm install -n {{ openebs_namespace }} {{ openebs_release_name }} stable/openebs -f templates/values.yaml"
   register: openebs_out
   until: "'The OpenEBS has been installed' in openebs_out.stdout"
   delay: 120
@@ -42,9 +30,8 @@
   delay: 60
   retries: 15
 
-- name: Create Storage Class
-  shell: kubectl apply -f storageclass.yaml
+#- name: Create Storage Class
+#  shell: kubectl apply -f storageclass.yaml
 
-- name: Check if storage classes are created
-  shell: kubectl get sc
-
+#- name: Check if storage classes are created
+#  shell: kubectl get sc
