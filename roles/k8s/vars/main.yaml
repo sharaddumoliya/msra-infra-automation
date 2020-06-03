@@ -1,4 +1,4 @@
-ad_addr: 192.168.168.141
+ad_addr: 10.40.137.42
 cidr_v: 172.16.0.0/16
 
 packages:
@@ -8,6 +8,11 @@ packages:
 services:
 - docker
 - kubelet
+
+
+ports:
+- "6443/tcp"
+- "10250/tcp"
 
 token_file: join_token
 
