@@ -3,14 +3,22 @@
 - debug:
       msg: "Kubernetes prerequisites and setting up nodes"
 
-- name: Disabling Swap on all nodes
-  shell: swapoff -a
+- name: Remove swapfile from /etc/fstab
+  mount:
+    name: "{{ item }}"
+    fstype: swap
+    state: absent
+  with_items:
+    - swap
+    - none
 
-- name: Commenting Swap entries in /etc/fstab
-  replace:
-   path: /etc/fstab
-   regexp: '(.*swap*)'
-   replace: '\1'
+- name: check swap
+  command: /sbin/swapon -s
+  register: swapon
+  changed_when: no
+- name: Disable swap
+  command: /sbin/swapoff -a
+  when: swapon.stdout
 
 - name: Creating a repository file for Kubernetes
   file:
@@ -48,25 +56,6 @@
    enabled: yes
   with_items: "{{ services }}"
 
-- name: starting firewalld services
-  service: name=firewalld state=started enabled=yes
-  register: service_firewalld_output
-
-- debug:
-    var: service_firewalld_output.state
-
-- name: Allow Network Ports in Firewalld
-  firewalld:
-   port: "{{ item }}"
-   state: enabled
-   permanent: yes
-   immediate: yes
-  with_items: "{{ ports }}"
-  register: port_output
-
-- debug:
-   var: port_output.msg
-
 - name: Enabling Bridge Firewall Rule
   shell: "echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables"
 
@@ -93,7 +82,7 @@
      sudo chown $(id -u):$(id -g) $HOME/.kube/config
 
   - name: Install Network Add-on
-    command: kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+    command: kubectl create -f https://docs.projectcalico.org/manifests/calico.yaml
 
   - name: Generate join command
     command: kubeadm token create --print-join-command
