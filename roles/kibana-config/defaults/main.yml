@@ -1,0 +1,2 @@
+ansible_user: EPUBBUR
+target_host: "{{hosts['k8s-master'][0]}}"

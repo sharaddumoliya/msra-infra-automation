@@ -1,0 +1,7 @@
+---
+
+#fluentd_helm_charts: https://kubernetes-charts.storage.googleapis.com/
+#fluentd_helm_charts: https://charts.bitnami.com/bitnami
+#fluentd_helm_charts: https://helm.elastic.co
+#helm_location: /usr/local/bin/
+ansible_user: EPUBBUR

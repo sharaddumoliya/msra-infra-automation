@@ -1,0 +1,98 @@
+---
+####################################################
+# Developer: EPUBBUR Pubali Deb Burman             #
+# Script name: main.yml                            #
+# Description: Fluentd deployment tasks            #
+# Version: 1.0.0                                   #
+# Date of development:13-04-2020                   #
+####################################################
+- name: Listing namespaces
+  command: "kubectl get namespaces"
+  register: namespace_list
+
+- name: Checking if Fluentd is installed in  "{{fluentd_namespace}}"
+  command: "kubectl get pods -n {{fluentd_namespace}}"
+  register: if_fluentd
+
+- set_fact:
+    message: "{{ ((task_type == 'install') and (fluentd_name in if_fluentd.stdout)) or ((task_type == 'uninstall') and (fluentd_name in if_fluentd.stdout)) | ternary('fluentd is installed', 'fluentd is not installed') }}"
+
+- debug:
+    msg: "{{message}}"
+
+- block:
+    - debug:
+        msg: "Fluentd is already deployed in {{fluentd_namespace}}"
+     
+    - name: Check the deployed pod status
+      command: "kubectl get pods -n {{fluentd_namespace}}"
+      register: fluentd_pod_status
+  
+    - debug:
+        var: fluentd_pod_status.stdout_lines
+  when: "fluentd_name in if_fluentd.stdout"
+
+- name: Installing Fluentd
+  block:
+    - name: Create a k8s namespace
+      k8s:
+        name: "{{fluentd_namespace}}"
+        api_version: v1
+        kind: Namespace
+        state: present
+      when: "fluentd_namespace not in namespace_list.stdout_lines"
+
+    - name: Templating values.yml
+      template:
+        src: "roles/fluentd/templates/values.yml.j2"
+        dest: "/home/{{ansible_user}}/values.yml"
+        mode: '0644'
+
+    - name: Install Fluentd
+      command: "kubectl apply -f /home/{{ansible_user}}/values.yml"
+      register: fluentd_result
+      failed_when: "'ERROR' in fluentd_result.stderr"
+     
+    - debug:
+       var: fluentd_result.stdout_lines  
+    
+    - name: Confirming successful deployment status
+      action:
+        shell kubectl get pods -n "{{fluentd_namespace}}" | grep "{{fluentd_app}}" | grep '1/1' | wc -l 
+      register: deployment_status
+      until: "deployment_status.stdout | int == 3 | int"
+      retries: 6
+      delay: 30
+
+    - debug:
+        var: deployment_status.stdout_lines
+        
+    - name: Remove file values.yml
+      file:
+        path: "/home/{{ansible_user}}/values.yml"
+        state: absent
+  when: "'install' == task_type and fluentd_name not in if_fluentd.stdout"
+
+- name: Unistalling Fluentd
+  block:
+    - name: Uninstall fluentd usning 
+      command: "{{item}}" 
+      register: fluentd_result
+      with_items: 
+        - "kubectl --namespace {{fluentd_namespace}} delete ServiceAccount {{fluentd_name}}"
+        - "kubectl --namespace {{fluentd_namespace}} delete ClusterRole {{fluentd_name}}"
+        - "kubectl --namespace {{fluentd_namespace}} delete ClusterRoleBinding {{fluentd_name}}"
+        - "kubectl --namespace {{fluentd_namespace}} delete DaemonSet {{fluentd_name}}"
+
+    - debug:
+        msg: "{{item.stdout}}"
+      loop: "{{fluentd_result.results}}"
+  when: "'uninstall' == task_type and 'fluentd' in if_fluentd.stdout and fluentd_name in if_fluentd.stdout"
+
+
+- name: Playbook Signature
+  block:
+    - debug:
+        msg: "No 'task_type' supplied. Playbook signature:   ansible-playbook -i <hosts file> <playbook> --extra-vars 'task_type=<install/uninstall>'"
+  when: "task_type == '' or ('install' or 'uninstall') not in task_type"
+

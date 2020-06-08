@@ -1,0 +1,20 @@
+---
+####################################################
+# Developer: EPUBBUR Pubali Deb Burman             #
+# Script name: efk.yml                             #
+# Description: Elasticsearch-Fluentd-Kibana        #
+#              deployment playbook                 #
+# Version: 1.0.0                                   #
+# Date of development:15-04-2020                   #
+####################################################
+- name: Import Elasticsearch playbook
+  import_playbook: elasticsearch.yml
+
+- name: Import Fluentd playbook
+  import_playbook: fluentd.yml
+
+- name: Import Kibana playbook
+  import_playbook: kibana.yaml
+
+- name: Import Kibana configuration load playbook
+  import_playbook: kibana-config.yml

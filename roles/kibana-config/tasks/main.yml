@@ -1,0 +1,40 @@
+---
+####################################################
+# Developer: EPUBBUR Pubali Deb Burman             #
+# Script name: main.yml                            #
+# Description: Kibana configuration change      #
+# Version: 1.0.0                                   #
+# Date of development:17-04-2020                   #
+####################################################
+- name: Getting kibana pod name
+  shell: kubectl get pods -n "{{elasticsearch_namespace}}" | grep 'kibana' | cut -d ' ' -f1
+  register: kibana_podname
+
+- name: Checking if Elasticsearch is installed in  "{{elasticsearch_namespace}}"
+  shell: kubectl get pods -n "{{elasticsearch_namespace}}"
+  register: if_elasticsearch
+
+- block:
+    - debug:
+        msg: "Kibana is already deployed in {{elasticsearch_namespace}}"
+     
+    - name: Copy the .ndjson file to remote
+      copy: "src={{ item.src }} dest={{ item.dest }} owner={{ item.owner }} group={{ item.group }} mode={{ item.mode }}"
+      with_items: 
+        - {src: "roles/kibana-config/files/kibana.ndjson", dest: "/home/{{ansible_user}}/", owner: "{{ansible_user}}", group: "{{ansible_user}}", mode: '0644'}
+
+
+
+    - name: Post the ndjson file
+      shell: "curl -X POST 'http://{{inventory_hostname}}:{{kibana_nodePort}}/api/saved_objects/_import' -H 'kbn-xsrf: true' --form file=@/home/{{ansible_user}}/kibana.ndjson"
+      args:
+        warn: no
+      register: post_status
+    - debug:
+        var: post_status.stdout_lines
+
+    - name: Remove file kibana.ndjson
+      file:
+        path: "/home/{{ansible_user}}/kibana.ndjson"
+        state: absent
+  when: "kibana_podname.stdout != ''"

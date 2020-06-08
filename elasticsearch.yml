@@ -1,0 +1,13 @@
+---
+####################################################
+# Developer: EPUBBUR Pubali Deb Burman             #
+# Script name: elasticsearch.yml                   #
+# Description: Elasticsearch deployment playbook   #
+# Version: 1.0.0                                   #
+# Date of development:09-04-2020                   #
+####################################################
+- hosts: k8s-master
+  become: yes
+  roles:
+    - role: elasticsearch
+      task_type: ""

@@ -10,4 +10,5 @@ kibana_nodePort: 30016
 kibana_replica_count: 1
 kibana_resources_limits_cpu: 1000m
 kibana_resources_requests_cpu: 100m
-elasticsearch_url: "http://elasticsearch:9200"
+#elasticsearch_url: "http://elasticsearch-service:9200"
+#elasticsearch_url: "http://{{elasticsearch_ip.stdout}}:9200"

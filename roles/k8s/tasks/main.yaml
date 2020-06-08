@@ -1,7 +1,23 @@
 ---
-
+##### Update /etc/hosts before running any command/scripts
 - debug:
       msg: "Kubernetes prerequisites and setting up nodes"
+
+- name: Disable SELinux
+  shell: |
+    setenforce 0
+    sed -i --follow-symlinks 's/^SELINUX=enforcing/SELINUX=disabled/' /etc/sysconfig/selinux
+  register: disable_selinux_status
+  
+- debug:
+      var: disable_selinux_status
+
+- name: Disable Firewall
+  shell: systemctl disable firewalld && systemctl stop firewalld
+  register: disable_firewall_status
+  
+- debug:
+      var: disable_firewall_status
 
 - name: Remove swapfile from /etc/fstab
   mount:
@@ -12,13 +28,23 @@
     - swap
     - none
 
-- name: check swap
+- name: Check swap
   command: /sbin/swapon -s
   register: swapon
   changed_when: no
+  
 - name: Disable swap
   command: /sbin/swapoff -a
   when: swapon.stdout
+
+- name: Enabling Bridge Firewall Rule and Update sysctl settings for Kubernetes networking
+  shell: |
+    modprobe br_netfilter
+    cat >>/etc/sysctl.d/kubernetes.conf<<EOF
+    net.bridge.bridge-nf-call-ip6tables = 1
+    net.bridge.bridge-nf-call-iptables = 1
+    EOF
+    sysctl --system
 
 - name: Creating a repository file for Kubernetes
   file:
@@ -39,37 +65,22 @@
       https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
 
 - name: Installing Docker
-  shell: |
-   yum install -y yum-utils device-mapper-persistent-data lvm2
-   yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-   yum update -y && yum install -y containerd.io-1.2.13 docker-ce-19.03.8 docker-ce-cli-19.03.8
+  shell: yum install docker -y
+
+- name: Enable and start docker service
+  shell: systemctl enable docker && systemctl start docker
 
 - name: Installing required packages
-  yum:
-   name: "{{ packages }}"
-   state: present
+  shell: yum install -y kubelet kubeadm kubectl –disableexcludes=kubernetes
 
 - name: Starting and Enabling the required services
-  service:
-   name: "{{ item }}"
-   state: started
-   enabled: yes
-  with_items: "{{ services }}"
+  shell: systemctl enable kubelet && systemctl start kubelet
 
-- name: Enabling Bridge Firewall Rule
-  shell: "echo '1' > /proc/sys/net/bridge/bridge-nf-call-iptables"
 
 - name: Setup Master node
   block:
   - debug:
       msg: "Master node configuration starts"
-
-  - name: Pulling images required for setting up a Kubernetes cluster
-    shell: kubeadm config images pull
-
-  - name: Resetting kubeadm
-    shell: kubeadm reset -f
-    register: kubeadm_reset_output
 
   - name: Initializing Kubernetes cluster
     shell: kubeadm init --apiserver-advertise-address {{ad_addr}} --pod-network-cidr={{cidr_v}}
@@ -83,6 +94,13 @@
 
   - name: Install Network Add-on
     command: kubectl create -f https://docs.projectcalico.org/manifests/calico.yaml
+
+  - name: Check status of pods
+    command: kubectl get pods -A
+    register: pods_status
+    
+  - debug:
+      var: pods_status
 
   - name: Generate join command
     command: kubeadm token create --print-join-command
@@ -98,10 +116,6 @@
   block:
   - debug:
       msg: "Worker node configuration starts"
-
-  - name: Resetting kubeadm
-    shell: kubeadm reset -f
-    register: kubeadm_reset_output
 
   - name: Copy the join command to server location
     copy: src=join-command dest=/tmp/join-command.sh mode=0777

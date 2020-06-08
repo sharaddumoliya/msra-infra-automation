@@ -1,0 +1,103 @@
+---
+####################################################
+# Developer: EPUBBUR Pubali Deb Burman             #
+# Script name: main.yml                            #
+# Description: Elasticsearch deployment tasks      #
+# Version: 1.0.0                                   #
+# Date of development:09-04-2020                   #
+####################################################
+- name: Listing namespaces
+  command: "kubectl get namespaces"
+  register: namespace_list
+
+- name: Checking if Elasticsearch is installed in  "{{elasticsearch_namespace}}"
+  command: "kubectl get pods -n {{elasticsearch_namespace}}"
+  register: if_elasticsearch
+
+- set_fact:
+    message: "{{ ((task_type == 'install') and ('es-cluster' in if_elasticsearch.stdout)) or ((task_type == 'uninstall') and ('es-cluster' in if_elasticsearch.stdout)) | ternary('elasticsearch is installed', 'elasticsearch is not installed') }}"
+
+- debug:
+    msg: "{{message}}"
+
+- block:
+    - debug:
+        msg: "Elasticsearch is already deployed in {{elasticsearch_namespace}}"
+     
+    - name: Check the deployed pod status
+      command: "kubectl get pods -n {{elasticsearch_namespace}}"
+      register: elasticsearch_pod_status
+  
+    - debug:
+        var: elasticsearch_pod_status.stdout_lines
+  when: "elasticsearch_name in if_elasticsearch.stdout"
+
+- name: Installing Elasticsearch
+  block:
+    - name: Create a k8s namespace
+      k8s:
+        name: "{{elasticsearch_namespace}}"
+        api_version: v1
+        kind: Namespace
+        state: present
+      when: "elasticsearch_namespace not in namespace_list.stdout_lines"
+
+    - name: Templating values.yml
+      template:
+        src: "roles/elasticsearch/templates/values.yml.j2"
+        dest: "/home/{{ansible_user}}/values.yml"
+        mode: '0644'
+
+    - name: Install Elasticsearch
+      command: "kubectl apply -f /home/{{ansible_user}}/values.yml"
+      register: elasticsearch_result
+      failed_when: "'ERROR' in elasticsearch_result.stderr"
+     
+    - debug:
+       var: elasticsearch_result.stdout_lines  
+    
+    - name: Confirming successful deployment status
+      action:
+        shell kubectl get pods -n "{{elasticsearch_namespace}}" | grep "{{elasticsearch_name}}" | grep '1/1' |wc -l
+      register: deployment_status
+      until: deployment_status.stdout|int == elasticsearch_replicas|int
+      retries: 5
+      delay: 60
+
+    - debug:
+         var: deployment_status.stdout_lines
+        
+    - name: Remove file values.yml
+      file:
+        path: "/home/{{ansible_user}}/values.yml"
+        state: absent
+  when: "'install' == task_type and 'es-cluster' not in if_elasticsearch.stdout"
+
+- name: Unistalling Elasticsearch
+  block:
+    - name: Uninstall elasticsearch usning 
+      command: "kubectl --namespace {{elasticsearch_namespace}} delete Statefulset 'es-cluster'"
+      register: elasticsearch_result
+    - debug:
+        var: elasticsearch_result.stdout_lines
+    - name: Checking PVC status in "{{elasticsearch_namespace}}"
+      shell: kubectl get pvc -n "{{elasticsearch_namespace}}" | grep -v NAME | cut -d ' ' -f1
+      register: elasticsearch_pvc_status
+    - debug:
+        var: elasticsearch_pvc_status.stdout_lines
+    - name: delete pvc for elasticsearch
+      command: "kubectl delete pvc -n {{elasticsearch_namespace}} {{elasticsearch_pvc_status.stdout}}"
+      register: pvc_delete_status
+      when: elasticsearch_pvc_status.stdout_lines != ''
+    - debug:
+        var: pvc_delete_status.stdout_lines
+  when: "'uninstall' == task_type and 'es-cluster' in if_elasticsearch.stdout"
+
+
+- name: Playbook Signature
+  block:
+    - debug:
+        msg: "No 'task_type' supplied. Playbook signature:   ansible-playbook -i <hosts file> <playbook> --extra-vars 'task_type=<install/uninstall>'"
+  when: "task_type == '' or ('install' or 'uninstall') not in task_type"
+
+

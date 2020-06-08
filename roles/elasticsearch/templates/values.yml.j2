@@ -1,0 +1,108 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{elasticsearch_name}}
+  namespace: {{elasticsearch_namespace}}
+spec:
+  serviceName: {{elasticsearch_serviceName}}
+  replicas: {{elasticsearch_replicas}}
+  selector:
+    matchLabels:
+      app: {{elasticsearch_app}}
+  template:
+    metadata:
+      labels:
+        app: {{elasticsearch_app}}
+    spec:
+      containers:
+      - name: elasticsearch
+        image: {{elasticsearch_image}}
+        resources:
+            limits:
+              cpu: 1000m
+            requests:
+              cpu: 100m
+        ports:
+        - containerPort: 9200
+          name: rest
+          protocol: TCP
+        - containerPort: 9300
+          name: inter-node
+          protocol: TCP
+        volumeMounts:
+        - name: data
+          mountPath: {{elasticsearch_mountPath}}
+        env:
+          - name: cluster.name
+            value: k8s-logs
+          - name: node.name
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+####seed_host name list####
+{%set seedHostList = []%}
+{%for i in range(elasticsearch_replicas)%}
+ {{seedHostList.append('es-cluster-'+i|string)}}
+{%endfor%}
+#####msaster_nodes name list#####
+{%set masterNodeList = []%}
+{%for j in range(elasticsearch_replicas-1)%}
+ {{masterNodeList.append('es-cluster-'+j|string)}}
+{%endfor%}
+          - name: discovery.seed_hosts
+            value: {{elasticsearch_serviceName}}
+          - name: cluster.initial_master_nodes
+            value: {{masterNodeList|join(',')}}
+          - name: ES_JAVA_OPTS
+            value: "-Xms512m -Xmx512m"
+      initContainers:
+      - name: fix-permissions
+        image: busybox
+        command: ["sh", "-c", "chown -R 1000:1000 /usr/share/elasticsearch/data"]
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+      - name: increase-vm-max-map
+        image: busybox
+        command: ["sysctl", "-w", "vm.max_map_count=262144"]
+        securityContext:
+          privileged: true
+      - name: increase-fd-ulimit
+        image: busybox
+        command: ["sh", "-c", "ulimit -n 65536"]
+        securityContext:
+          privileged: true
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      labels:
+        app: {{elasticsearch_app}}
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: {{elasticsearch_storageClassName}}
+      resources:
+        requests:
+          storage: {{elasticsearch_storage}}
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: {{elasticsearch_serviceName}}
+  namespace: {{elasticsearch_namespace}}
+  labels:
+    app: {{elasticsearch_app}}
+spec:
+  selector:
+    app: {{elasticsearch_app}}
+  clusterIP: 10.107.106.34
+  ports:
+    - port: 9200
+      name: rest
+      targetPort: 9200
+    - port: 9300
+      name: inter-node
+      targetPort: 9300

@@ -42,7 +42,7 @@ spec:
             cpu: {{kibana_resources_requests_cpu}}
         env:
           - name: ELASTICSEARCH_URL
-            value: {{elasticsearch_url}}
+            value: http://{{elasticsearch_serviceName}}:9200
         ports:
         - containerPort: 5601
 

@@ -1,0 +1,12 @@
+---
+####################################################
+# Developer: EPUBBUR Pubali Deb Burman             #
+# Script name: kibana-config.yml                   #
+# Description: kibana ndjson posting script        #
+# Version: 1.0.0                                   #
+# Date of development:17-04-2020                   #
+####################################################
+- hosts: k8s-master
+  become: yes
+  roles:
+    - kibana-config
