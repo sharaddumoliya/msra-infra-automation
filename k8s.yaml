@@ -9,6 +9,9 @@
 ####################################################
 
 - hosts: "k8s-{{ node_type }}"
+  become: true
+  become_method: sudo
+  become_user: root
 
   roles:
     - k8s

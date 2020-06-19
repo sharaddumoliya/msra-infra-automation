@@ -38,4 +38,5 @@ resources:
 zookeeper:
   enabled: true
   persistence:
+    storageClass: {{kafka_storageClass}}  
     size: {{zookeeper_size}}
