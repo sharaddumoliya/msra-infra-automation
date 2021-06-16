@@ -1,0 +1,18 @@
+---
+
+- name: Create Cluster
+  gcp_container_cluster:
+    name: "{{ msra_cluster_name }}"
+    initial_node_count: "{{ num_nodes }}"
+    master_auth:
+      username: cluster_admin
+      password: admin123
+    node_config:
+      machine_type: "{{ msra_machine_type }}"
+      disk_size_gb: "{{ disk_size }}"
+    location: "{{ gcp_zone }}"
+    project: "{{ msra_project_name }}"
+    auth_kind: serviceaccount
+    service_account_file: "/tmp/auth.json"
+    state: present
+

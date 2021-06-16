@@ -1,0 +1,16 @@
+---
+####################################################
+# Developer: ESHADUM Sharad Dumoliya               #
+# Script name: create-ec2.yaml                     #
+# Description: EC2 creation playbook               #
+# Version: 1.0.0                                   #
+# Date of development:13-01-2021                   #
+####################################################
+- hosts: localhost
+  become_user: ec2-user
+
+  roles:
+    - role: create_ec2
+      task_type: ""
+
+

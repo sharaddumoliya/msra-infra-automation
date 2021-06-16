@@ -1,0 +1,9 @@
+---
+
+msra_project_name: bmas-msra-gcp-colaboration
+msra_cluster_name: bmas-msra-gcp-dev
+msra_cluster_version: latest
+disk_size: 40
+num_nodes: 2
+msra_machine_type: e2-small
+gcp_zone: asia-east1-a
